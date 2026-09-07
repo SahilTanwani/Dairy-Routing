@@ -1,0 +1,12 @@
+### Build output ###
+target/
+
+### IDE ###
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+
+### Logs ###
+*.log
