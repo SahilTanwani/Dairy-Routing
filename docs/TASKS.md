@@ -18,11 +18,11 @@ Work these **in order**, one at a time. Mark `[x]` when done and commit.
 
       RULE FROM HERE ON: Instant.now() appears exactly once, inside SystemClock.
 
-- [ ] **T0.5** · `docker-compose.yml` (postgres:16-alpine + healthcheck) and `Dockerfile`
+- [x] **T0.5** · `docker-compose.yml` (postgres:16-alpine + healthcheck) and `Dockerfile`
       (two-stage, `dependency:go-offline` in its own layer)
 - [ ] **T0.6** · `application.yml` — datasource from env with local defaults,
       `ddl-auto: validate`, `open-in-view: false`
-- [ ] **T0.7** · `V1__baseline.sql` (trivial table) + `GET /api/v1/health` using
+- [x] **T0.7** · `V1__baseline.sql` (trivial table) + `GET /api/v1/health` using
       `ClockProvider`
 - [ ] **T0.8** · **Clean-machine check #1** — clone your own repo elsewhere,
       `docker compose up --build`, curl health

@@ -1,0 +1,45 @@
+services:
+
+  db:
+    image: postgres:16-alpine
+    container_name: milkroute-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-milkroute}
+      POSTGRES_USER: ${POSTGRES_USER:-milkroute}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-milkroute}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - milkroute-db-data:/var/lib/postgresql/data
+    healthcheck:
+      # The app waits on this. Without it Boot starts first, Flyway cannot connect,
+      # and the whole stack dies on a race that looks like a real bug.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-milkroute} -d ${POSTGRES_DB:-milkroute}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+    container_name: milkroute-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Container-to-container, so the host is the service name, not localhost.
+      DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-milkroute}
+      DB_USERNAME: ${POSTGRES_USER:-milkroute}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-milkroute}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/v1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+volumes:
+  milkroute-db-data:

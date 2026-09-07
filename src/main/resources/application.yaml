@@ -1,3 +1,18 @@
 spring:
   application:
     name: milkroute
+
+  # Defaults point at a local docker compose stack; every value is overridable by env so
+  # the same image runs unchanged in the compose network, where the host is "db".
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/milkroute}
+    username: ${DB_USERNAME:milkroute}
+    password: ${DB_PASSWORD:milkroute}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  flyway:
+    enabled: true
