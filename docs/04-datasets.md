@@ -122,14 +122,28 @@ that goes critical in the demo.
 
 ### Points within villages
 
+**Derive the count, do not draw it.** A point exists because somebody delivers milk to it,
+so the number of points follows from the number of farmers:
+
 ```java
-int count = cfg.pointsPerVillage().pickInt(rng);
-for (int i = 0; i < count; i++) {
-    double offsetKm = rng.nextDouble() * cfg.pointScatterMetres() / 1000.0;
-    GeoPoint at = project(village.location(), rng.nextDouble() * 360, offsetKm);
-    save(new CollectionPoint("CP-%05d".formatted(++counter), village, at));
-}
+int wanted = round(cfg.targetFarmerCount() / (1 + cfg.twoFarmerPointRatio()));
 ```
+
+`pointsPerVillage` then decides how big each village is *relative to its neighbours*, and
+those draws are scaled to the total by largest remainder so the parts sum exactly:
+
+```java
+double exact = shape[i] / shapeTotal * wanted;
+allocated[i] = max(floorPerVillage, (int) floor(exact));
+// leftovers handed out largest-fraction-first
+```
+
+Drawing `pointsPerVillage` directly and handing out farmers afterwards is the obvious
+version, and it is wrong: the farmer budget runs out partway through and the last hundred
+points are left with nobody on them. Switching those off with `active = false` hides the
+symptom and leaves the dairy carrying phantom infrastructure. Deriving the total means
+every seeded point has a farmer and `collectionPoints` equals `activePoints`, which is
+worth asserting on `dataset-check`.
 
 Points end up 200–600 m apart, so travel between them is 1–2 min. **That is why the
 two-phase algorithm works** — points cluster tightly into villages.
@@ -141,7 +155,9 @@ for (CollectionPoint p : points) {
     int n = (rng.nextDouble() < cfg.twoFarmerPointRatio()) ? 2 : 1;
     double morning = 0, evening = 0;
 
-    for (int i = 0; i < n && created < cfg.targetFarmerCount(); i++) {
+    // the first farmer is never refused; the target caps second farmers only
+    int n = alwaysOne + (wantsSecond && created + 2 <= cfg.targetFarmerCount() ? 1 : 0);
+    for (int i = 0; i < n; i++) {
         int animals = cfg.animalsPerFarmer().pickInt(rng);
         double daily = animals * cfg.litresPerAnimalPerDay().pick(rng);
         save(new Farmer("F-%05d".formatted(++created), p, animals));
@@ -155,8 +171,11 @@ for (CollectionPoint p : points) {
 }
 ```
 
-`targetFarmerCount` is a **target, not an exact count**. Trying to hit an exact number
-leads to ugly special-case code.
+`targetFarmerCount` is a **target, not an exact count**. Because the first farmer at a
+point is never refused, the total lands a fraction of a percent either side of it —
+1,408 against a target of 1,400 on `baseline`. Chasing the exact figure would mean either
+a point with nobody on it or a pile of special-case code, and both are worse than being
+eight farmers out.
 
 **Daily variance** is applied at trip creation, not seed time:
 
@@ -298,7 +317,8 @@ Each stresses a **different** pressure point. Five variations of "bigger" prove 
 ### `baseline.yaml`
 
 ```yaml
-# Expect: time ratio ~0.76, volume ratio ~0.21, 0 unreachable, farthest village ~43 km
+# Expect: 1,250 points / 1,408 farmers, time ratio 0.78, volume ratio 0.21,
+# 0 unreachable, farthest village 43.3 km
 name: baseline
 seed: 88213
 villageCount: 60

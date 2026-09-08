@@ -27,6 +27,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import org.springframework.data.repository.CrudRepository;
@@ -267,7 +269,15 @@ public class SeedService {
     }
 
     /**
-     * Points scattered inside each village's radius.
+     * Points scattered inside each village's radius, in the quantity the farmer target
+     * implies.
+     *
+     * <p>The count is derived rather than drawn. Generating {@code pointsPerVillage} points
+     * per village first and then handing out farmers until the budget ran out left a
+     * hundred-odd points with nobody on them, switched off to keep them out of routing.
+     * That is not a thing a real dairy has: a collection point exists because somebody
+     * delivers milk to it. Deriving the total from {@code targetFarmerCount} removes those
+     * points rather than hiding them behind an inactive flag.
      *
      * <p>At a few hundred metres apart, travel between two points in the same village is
      * one or two minutes while travel between villages is tens of minutes. That gap is
@@ -277,13 +287,15 @@ public class SeedService {
     private List<CollectionPoint> seedCollectionPoints(DatasetConfig cfg,
                                                        List<Village> villages,
                                                        Random rng) {
+        int[] perVillage = distributePoints(cfg, villages.size(), rng);
+
         List<CollectionPoint> points = new ArrayList<>();
-        for (Village village : villages) {
+        for (int v = 0; v < villages.size(); v++) {
+            Village village = villages.get(v);
             GeoPoint centre =
                     new GeoPoint(village.getLat().doubleValue(), village.getLng().doubleValue());
-            int count = cfg.pointsPerVillage().pickInt(rng);
 
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < perVillage[v]; i++) {
                 double offsetKm = rng.nextDouble() * cfg.pointScatterMetres() / 1000.0;
                 GeoPoint at = centre.project(rng.nextDouble() * 360, offsetKm);
 
@@ -303,15 +315,87 @@ public class SeedService {
     }
 
     /**
+     * How many points each village gets.
+     *
+     * <p>The total comes first. A point serves one farmer, or two with probability
+     * {@code twoFarmerPointRatio}, so {@code targetFarmerCount / (1 + ratio)} points is
+     * what the target implies.
+     *
+     * <p>The shape comes second. Each village draws from {@code pointsPerVillage} to settle
+     * how big it is next to its neighbours, and the draws are then scaled to the total. The
+     * range therefore governs variation between villages rather than the absolute count,
+     * which is what lets the farmer target and the village sizes both be honoured instead
+     * of one silently overriding the other.
+     *
+     * <p>Allocation is largest-remainder, so the parts sum to exactly the total rather than
+     * losing a handful of points to rounding.
+     */
+    private int[] distributePoints(DatasetConfig cfg, int villageCount, Random rng) {
+        int wanted = (int) Math.round(cfg.targetFarmerCount() / (1 + cfg.twoFarmerPointRatio()));
+
+        double[] shape = new double[villageCount];
+        double shapeTotal = 0;
+        for (int i = 0; i < villageCount; i++) {
+            shape[i] = Math.max(1, cfg.pointsPerVillage().pickInt(rng));
+            shapeTotal += shape[i];
+        }
+
+        // Every village gets at least one point when there are enough to go round. A config
+        // with more villages than its farmer target supports is odd but legitimate, and
+        // there some villages simply have no collection point.
+        int floorPerVillage = wanted >= villageCount ? 1 : 0;
+
+        int[] allocated = new int[villageCount];
+        double[] remainder = new double[villageCount];
+        int assigned = 0;
+        for (int i = 0; i < villageCount; i++) {
+            double exact = shape[i] / shapeTotal * wanted;
+            allocated[i] = Math.max(floorPerVillage, (int) Math.floor(exact));
+            remainder[i] = exact - Math.floor(exact);
+            assigned += allocated[i];
+        }
+
+        Integer[] byRemainder = new Integer[villageCount];
+        for (int i = 0; i < villageCount; i++) {
+            byRemainder[i] = i;
+        }
+        Arrays.sort(byRemainder,
+                Comparator.comparingDouble((Integer i) -> remainder[i]).reversed());
+
+        // Hand out what rounding left over, largest fraction first.
+        for (int cursor = 0; assigned < wanted; cursor = (cursor + 1) % villageCount) {
+            allocated[byRemainder[cursor]]++;
+            assigned++;
+        }
+
+        // Claw back the same way if the per-village floor pushed the total over.
+        for (int cursor = villageCount - 1; assigned > wanted;
+                cursor = (cursor - 1 + villageCount) % villageCount) {
+            int village = byRemainder[cursor];
+            if (allocated[village] > 0) {
+                allocated[village]--;
+                assigned--;
+            }
+        }
+        return allocated;
+    }
+
+    /**
      * Farmers, and the volumes their points are expected to yield.
      *
-     * <p>{@code twoFarmerPointRatio} of points get two farmers. That is the case the
+     * <p>Every point gets a farmer, unconditionally. The point count was derived from the
+     * farmer target precisely so that this holds without a special case, and it is why
+     * nothing here has to decide whether a point is worth activating.
+     *
+     * <p>A {@code twoFarmerPointRatio} share get a second. That is the case the
      * point-versus-farmer split in the schema exists for: one stop, one visit, two milk
      * records.
      *
-     * <p>{@code targetFarmerCount} is a target, not a quota. Once it is met the remaining
-     * points get a single farmer each, because chasing an exact total buys nothing and
-     * costs a pile of special cases.
+     * <p>{@code targetFarmerCount} stays a target rather than a quota, and it now caps
+     * second farmers only. The first farmer at a point is never refused, so the total can
+     * drift a fraction of a percent either side of the target as the two-farmer draws fall
+     * — 1,408 against a target of 1,400 on baseline. That is the right trade: the
+     * alternative is a point with nobody on it, which is not a thing a dairy has.
      *
      * <p>Note what is not here: day-to-day variance. Volumes are seeded as averages and
      * varied at trip creation instead, so the plan's estimate is always slightly wrong in
@@ -319,16 +403,18 @@ public class SeedService {
      */
     private int seedFarmers(DatasetConfig cfg, List<CollectionPoint> points, Random rng) {
         List<Farmer> farmers = new ArrayList<>();
-        List<CollectionPoint> touched = new ArrayList<>(points.size());
         int created = 0;
 
         for (CollectionPoint point : points) {
-            int wanted = rng.nextDouble() < cfg.twoFarmerPointRatio() ? 2 : 1;
+            // Drawn for every point whether or not the budget can afford it, so that
+            // running out does not shift the random sequence for the points that follow.
+            boolean wantsSecond = rng.nextDouble() < cfg.twoFarmerPointRatio();
+            int atThisPoint = wantsSecond && created + 2 <= cfg.targetFarmerCount() ? 2 : 1;
+
             double morning = 0;
             double evening = 0;
-            int atThisPoint = 0;
 
-            for (int i = 0; i < wanted && created < cfg.targetFarmerCount(); i++) {
+            for (int i = 0; i < atThisPoint; i++) {
                 int animals = cfg.animalsPerFarmer().pickInt(rng);
                 double daily = animals * cfg.litresPerAnimalPerDay().pick(rng);
 
@@ -340,21 +426,18 @@ public class SeedService {
                 farmer.setAnimalCount((short) animals);
                 farmers.add(farmer);
 
-                atThisPoint++;
                 morning += daily * MORNING_SHARE;
                 evening += daily * EVENING_SHARE;
             }
 
-            // A point past the farmer target has nobody on it and no milk to collect.
             point.setServiceMinutes(minutes(
                     SERVICE_BASE_MINUTES + SERVICE_MINUTES_PER_FARMER * atThisPoint));
             point.setAvgMorningLitres(litres(morning));
             point.setAvgEveningLitres(litres(evening));
-            point.setActive(atThisPoint > 0);
-            touched.add(point);
+            point.setActive(true);
         }
 
-        saveInChunks(pointRepo, touched);
+        saveInChunks(pointRepo, points);
         saveInChunks(farmerRepo, farmers);
         return created;
     }

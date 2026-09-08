@@ -1,10 +1,11 @@
 # baseline — the comfortable morning. Nothing binds; this is the happy path.
 #
 # Expected on dataset-check (GET /admin/dataset-check):
-#   villages 60, points ~1,250, farmers ~1,400
-#   time ratio < 0.8          <- the number that says "everyone gets served"
+#   villages 60, points 1,250, farmers 1,408   (every point has a farmer)
+#   time ratio 0.78           <- the number that says "everyone gets served"
+#   volume ratio 0.21         <- capacity is nowhere near binding
 #   unreachable villages 0
-#   farthest village ~45 km
+#   farthest village 43.3 km
 #
 # Re-run dataset-check after changing anything here. Writing a config does not
 # guarantee it lands on the constraint you meant to hit.
