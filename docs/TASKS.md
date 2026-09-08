@@ -46,11 +46,11 @@ Work these **in order**, one at a time. Mark `[x]` when done and commit.
       tanker_ping, alert, intake_record.
       **Include `client_event_id UUID UNIQUE` and `uq_alert_open`.**
 - [x] **T1.5** · `V6__advisory.sql` — merge_proposal, merge_proposal_point
-- [ ] **T1.6** · JPA entities, one per table. `@Version` on Trip.
-- [ ] **T1.7** · Enums — Session, TripStatus, TripStopStatus, EventType, RiskLevel,
+- [x] **T1.6** · JPA entities, one per table. `@Version` on Trip.
+- [x] **T1.7** · Enums — Session, TripStatus, TripStopStatus, EventType, RiskLevel,
       SkipReason, PlanStatus, PlanMode, EtaConfidence, AlertType, AlertSeverity,
       ExclusionReason
-- [ ] **T1.8** · Repositories — query methods for available tankers, active points by
+- [x] **T1.8** · Repositories — query methods for available tankers, active points by
       village, published plan by session, active trips
 
 **Done when:** `docker compose down -v && docker compose up` runs all migrations cleanly

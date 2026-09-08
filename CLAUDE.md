@@ -45,6 +45,13 @@ Note Boot 4 starter names: `spring-boot-starter-webmvc` (not `-web`),
 
 5. **Flyway owns the schema.** `ddl-auto: validate`. Hibernate never generates DDL.
 
+6. **Commit messages carry no AI attribution.** Never add "Co-Authored-By"
+   trailers, "Generated with Claude Code" lines, or any similar marker.
+   Plain descriptive messages only.
+
+7. **Never run git commands.** Do not stage, commit, push, or amend.
+   Report what changed and stop. I will review and commit myself.
+
 ## Key domain rules
 
 - The spoilage clock starts at **first collection**, not departure. The
@@ -116,6 +123,3 @@ This is a 48-hour take-home with roughly 24 working hours remaining. Prefer corr
 simple over complete and clever. If a task is overrunning, say so rather than
 continuing — there is a documented cut list in `docs/TASKS.md`.
 
-## Commits
-Do not add Co-Authored-By trailers or any AI attribution to commit messages.
-Write plain, descriptive messages only.
