@@ -262,7 +262,7 @@ public class SeedRunner implements ApplicationRunner {
 restart:
 
 ```java
-@PostMapping("/admin/reseed")
+@PostMapping("/reseed")   // under ApiPaths.V1 + "/admin"
 @Transactional
 public SeedResult reseed(@RequestParam String dataset) {
     var config = loader.load(dataset);    // ← load FIRST, fail before wiping
@@ -414,7 +414,7 @@ Writing a config does not guarantee it hits the constraint you intended.
 Build a verification endpoint:
 
 ```java
-@GetMapping("/admin/dataset-check")
+@GetMapping("/dataset-check")   // under ApiPaths.V1 + "/admin"
 public DatasetDiagnostics check() {
     var ctx = contextFactory.build(defaultSession, defaultAmbientC);
     return new DatasetDiagnostics(
@@ -443,21 +443,21 @@ so you are never surprised in the interview.
 
 ```bash
 # 1. Baseline — comfortable morning
-POST /admin/reseed?dataset=baseline
-POST /plans {"session":"MORNING","ambientTempC":22}
+POST /api/v1/admin/reseed?dataset=baseline
+POST /api/v1/plans {"session":"MORNING","ambientTempC":22}
 # → 19 routes, 100% coverage, 3 tankers spare
 
 # 2. Same dairy, hot evening  ← the headline
 diff datasets/baseline.yaml datasets/heat-crisis.yaml     # two lines
-POST /admin/reseed?dataset=heat-crisis
-POST /plans {"session":"EVENING","ambientTempC":35}
+POST /api/v1/admin/reseed?dataset=heat-crisis
+POST /api/v1/plans {"session":"EVENING","ambientTempC":35}
 # → COVERAGE_OPTIMISATION, 19%, 1,009 unserved
-GET /advisory/session-timing
+GET /api/v1/advisory/session-timing
 # → depart 18:30, 37% coverage, costs nothing
 
 # 3. Sparse district — a different kind of failure
-POST /admin/reseed?dataset=sparse-district
-POST /plans {"session":"EVENING","ambientTempC":30}
-GET /plans/latest/exclusions
+POST /api/v1/admin/reseed?dataset=sparse-district
+POST /api/v1/plans {"session":"EVENING","ambientTempC":30}
+GET /api/v1/plans/{id}/exclusions
 # → 8 villages UNREACHABLE_WITHIN_HOLD with the arithmetic
 ```

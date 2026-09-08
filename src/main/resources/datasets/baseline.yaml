@@ -1,6 +1,6 @@
 # baseline — the comfortable morning. Nothing binds; this is the happy path.
 #
-# Expected on dataset-check (GET /admin/dataset-check):
+# Expected on dataset-check (GET /api/v1/admin/dataset-check):
 #   villages 60, points 1,250, farmers 1,408   (every point has a farmer)
 #   time ratio 0.78           <- the number that says "everyone gets served"
 #   volume ratio 0.21         <- capacity is nowhere near binding

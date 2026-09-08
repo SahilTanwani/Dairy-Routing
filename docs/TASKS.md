@@ -74,10 +74,10 @@ and Hibernate validation passes with no schema mismatch.
 - [x] **T2.7** · Seed fleet, drivers, plant — round-robin `capacityMix`, first N insulated
 - [x] **T2.8** · Seed temperature profiles (24 rows) + the 20 solver parameters
 - [x] **T2.9** · `SeedRunner` — `ApplicationRunner`, skips if data exists
-- [x] **T2.10** · Reseed endpoint — `POST /admin/reseed?dataset=X`.
+- [x] **T2.10** · Reseed endpoint — `POST /api/v1/admin/reseed?dataset=X`.
       **Load config before truncating. Clear the matrix cache. Guard to dev/sim.**
 - [x] **T2.11** · Write `baseline.yaml`
-- [x] **T2.12** · `GET /admin/dataset-check` — counts, required vs available hot minutes
+- [x] **T2.12** · `GET /api/v1/admin/dataset-check` — counts, required vs available hot minutes
       and ratio, volume vs capacity, unreachable count, farthest village km
 
 **Done when:** 60 villages, ~1,250 points, ~1,400 farmers; dataset-check shows time
@@ -129,7 +129,7 @@ depends on these being right.
 - [x] **T4.11** · `TankerAssigner` — riskiest route gets the largest hold budget
 - [x] **T4.12** · `PlanResult` + `FeasibilityReport`
 
-**Done when:** `POST /plans` at 22 °C serves all points in under 5 s using fewer than 22
+**Done when:** `POST /api/v1/plans` at 22 °C serves all points in under 5 s using fewer than 22
 tankers.
 
 **Actual:** 193 ms. Three defects were found by wiring Phase 6 on top of this phase, and
@@ -186,7 +186,7 @@ honestly rather than a second algorithm. Partial fill and ejection chains are cu
       `last_served_date` for served points, increments for the rest. Runs on **publish**,
       not on generate, so a discarded draft never marks a village as collected.
 - [x] **T5.5** · One `plan_exclusion` row per unserved point, reason `COVERAGE_LIMIT`,
-      with litres forgone. `GET /plans/{id}/exclusions` lands with `PlanController` in
+      with litres forgone. `GET /api/v1/plans/{id}/exclusions` lands with `PlanController` in
       T6.3, which is where the plan id comes from.
 
 **Done when:** 35 °C switches to `COVERAGE_OPTIMISATION` automatically, `PlanResult`
@@ -204,7 +204,7 @@ persists and publishes a plan.
       + stops
 - [x] **T6.2** · Publish endpoint — verify `uq_one_published_per_session` rejects a
       second publish
-- [x] **T6.3** · `PlanController` — POST /plans, GET /plans/{id}, GET feasibility,
+- [x] **T6.3** · `PlanController` — POST /api/v1/plans, GET /plans/{id}, GET feasibility,
       POST publish, GET published
 - [x] **T6.4** · **`TimingAdvisory`** ← 20 minutes, best line in the demo
 - [x] **T6.5** · `AdvisoryController`
@@ -264,7 +264,7 @@ reviewer notices.
       ContinueAsPlanned
 - [ ] **T8.11** · `MitigationService` — generate, rank by litres saved, execute with
       optimistic locking. **Never auto-execute.**
-- [ ] **T8.12** · `OpsController` + `GET /ops/board` facade
+- [ ] **T8.12** · `OpsController` + `GET /api/v1/ops/board` facade
 
 **Done when:** a delayed trip escalates WARNING → CRITICAL and offers ranked mitigations
 with real numbers.
@@ -291,7 +291,7 @@ operator class, and the random connectivity model.
       must produce ≥ 5 unreachable villages. Write expected numbers as a comment at the
       top of each YAML.
 
-**Done when:** `POST /sim/run` completes a session and `spoilage-crisis` produces exactly
+**Done when:** `POST /api/v1/sim/run` completes a session and `spoilage-crisis` produces exactly
 one CRITICAL alert with zero rejected litres.
 
 ---
@@ -338,8 +338,8 @@ one CRITICAL alert with zero rejected litres.
 ## The five things that must exist at the end
 
 1. `docker compose up` works from a fresh clone
-2. `POST /plans` produces routes at 22 °C and switches to coverage mode at 35 °C
-3. `GET /farmers/{code}/tanker-status` returns a plain-English sentence
+2. `POST /api/v1/plans` produces routes at 22 °C and switches to coverage mode at 35 °C
+3. `GET /api/v1/farmers/{code}/tanker-status` returns a plain-English sentence
 4. Event idempotency demonstrably works
 5. README explains the evening-is-impossible finding
 

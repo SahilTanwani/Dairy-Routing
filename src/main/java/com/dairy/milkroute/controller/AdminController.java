@@ -26,7 +26,7 @@ import org.springframework.web.server.ResponseStatusException;
  * {@code DatasetDiagnosticsService}.
  */
 @RestController
-@RequestMapping("/admin")
+@RequestMapping(ApiPaths.V1 + "/admin")
 public class AdminController {
 
     /** Reseeding destroys data, so it is confined to profiles where that is expected. */

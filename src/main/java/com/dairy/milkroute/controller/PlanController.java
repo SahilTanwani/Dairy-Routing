@@ -33,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
  * exclusion row — all live behind those calls.
  */
 @RestController
-@RequestMapping("/plans")
+@RequestMapping(ApiPaths.V1 + "/plans")
 public class PlanController {
 
     /** When the fleet leaves if the caller does not say. */

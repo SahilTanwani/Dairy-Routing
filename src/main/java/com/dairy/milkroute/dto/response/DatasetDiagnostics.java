@@ -3,8 +3,8 @@ package com.dairy.milkroute.dto.response;
 import java.util.List;
 
 /**
- * What {@code GET /admin/dataset-check} reports: whether a dataset actually lands on the
- * pressure point it was written to hit.
+ * What {@code GET /api/v1/admin/dataset-check} reports: whether a dataset actually lands
+ * on the pressure point it was written to hit.
  *
  * <p>Writing a config does not guarantee it binds where you intended. A dataset meant to
  * be comfortable can turn out impossible, and one meant to force coverage mode can turn

@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
  * this one costs a conversation about when farmers milk.
  */
 @RestController
-@RequestMapping("/advisory")
+@RequestMapping(ApiPaths.V1 + "/advisory")
 public class AdvisoryController {
 
     private static final LocalTime DEFAULT_MORNING_DEPARTURE = LocalTime.of(5, 0);

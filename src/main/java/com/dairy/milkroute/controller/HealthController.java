@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
  * bug that is not there. So this returns 503 until the dairy is actually loaded.
  */
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping(ApiPaths.V1)
 public class HealthController {
 
     private final ClockProvider clock;
