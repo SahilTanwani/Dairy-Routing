@@ -87,12 +87,12 @@ ratio < 0.8.
 
 ## Phase 3 — The two calculations (~2 h)
 
-- [ ] **T3.1** · `TravelTimeProvider` interface (plain Java, `domain/geo/`)
-- [ ] **T3.2** · `HaversineTravelTime` — circuity 1.35, speeds 15/26/34, morning ×1.15 /
+- [x] **T3.1** · `TravelTimeProvider` interface (plain Java, `domain/geo/`)
+- [x] **T3.2** · `HaversineTravelTime` — circuity 1.35, speeds 15/26/34, morning ×1.15 /
       evening ×0.90, all params injected from `solver_parameter`
-- [ ] **T3.3** · Travel time tests — the worked example: 10.4 km straight → 14.0 km road
+- [x] **T3.3** · Travel time tests — the worked example: 10.4 km straight → 14.0 km road
       → 21.5 min morning, 27.4 min evening
-- [ ] **T3.4** · `TravelMatrix` + cache keyed by SHA-256 of the sorted point set
+- [x] **T3.4** · `TravelMatrix` + cache keyed by SHA-256 of the sorted point set
 - [ ] **T3.5** · `SpoilageCalculator` — Q10 formula with min/max clamps
 - [ ] **T3.6** · **`SpoilageCalculator` tests** ← test hardest
 

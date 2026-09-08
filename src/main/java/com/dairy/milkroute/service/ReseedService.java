@@ -1,5 +1,6 @@
 package com.dairy.milkroute.service;
 
+import com.dairy.milkroute.domain.geo.TravelMatrixCache;
 import com.dairy.milkroute.dto.DatasetConfig;
 import com.dairy.milkroute.dto.response.SeedResult;
 import jakarta.persistence.EntityManager;
@@ -44,9 +45,11 @@ public class ReseedService {
     private EntityManager entityManager;
 
     private final SeedService seedService;
+    private final TravelMatrixCache matrixCache;
 
-    public ReseedService(SeedService seedService) {
+    public ReseedService(SeedService seedService, TravelMatrixCache matrixCache) {
         this.seedService = seedService;
+        this.matrixCache = matrixCache;
     }
 
     @Transactional
@@ -54,9 +57,12 @@ public class ReseedService {
         entityManager.createNativeQuery(TRUNCATE_ALL).executeUpdate();
         entityManager.clear();
 
-        // The travel matrix is cached by a hash of the point set, and a stale matrix from
-        // the previous dataset produces distances that are wrong but entirely plausible.
-        // Clearing it belongs here, and lands with the cache itself in T3.4.
+        // Matrices are keyed by a hash of the point set, the session and the travel
+        // parameters, so the incoming dataset cannot collide with the outgoing one and this
+        // is a memory concern rather than a correctness one. Dropping them anyway: the
+        // entries are unreachable the moment the old points are gone, and a demo that moves
+        // between three datasets should not carry all three matrices around.
+        matrixCache.clear();
 
         return seedService.seed(config);
     }
