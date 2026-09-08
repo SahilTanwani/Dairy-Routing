@@ -180,11 +180,45 @@ for (int i = 0; i < cfg.tankerCount(); i++) {
 ```
 
 The round-robin is what keeps the mix configurable. `[2000, 3000, 5000]` gives an even
-three-way split; `[2000, 2000, 3000]` gives two-thirds small tankers. No special code.
+three-way split; `[2000, 2000, 3000]` gives two-thirds small tankers; a single entry gives
+a uniform fleet. No special code for any of them.
 
-**Why mixed capacities?** If every tanker were 5,000 L, capacity would never bind and
-that code path would never run. Small tankers fill on high-volume routes and force
-splits.
+**Why a uniform fleet here?** Every tanker in these datasets holds 4,000 L. The dairy
+collects around 18,500 L a session against 88,000 L of fleet capacity, so volume runs at
+roughly a fifth of what the tankers can hold. Dealing out mixed capacities would not change
+that: capacity is not what this dairy runs out of.
+
+What it runs out of is time, and saying so plainly is more honest than manufacturing a
+second binding constraint to show off a code path. The capacity check still runs on every
+merge — it is one of the four constraints, and `dataset-check` reports the volume ratio
+that shows how far it is from binding — it simply never rejects a merge at this volume.
+
+**Insulation is the axis that still varies**, and it is the one that matters: an insulated
+tanker holds its milk about six degrees cooler, which is worth real minutes of budget.
+That is what gives tanker assignment a decision to make. The riskiest route gets the
+largest hold budget, and with a uniform fleet "largest budget" means "insulated" rather
+than "biggest".
+
+### Reference data
+
+Temperature profiles and solver parameters are the same for every dataset, so they live in
+`datasets/reference.yaml` and are seeded alongside whichever dataset is loaded.
+
+They cannot go in a migration, because the reseed endpoint truncates both tables. They
+should not go in `SeedService` either, because hard rule 4 keeps tuning numbers out of
+code. A file next to the datasets is the remaining honest option, and it means the
+nineteen parameters are written down in one readable place with a sentence each on what
+they do.
+
+```yaml
+temperatureProfiles:
+  - { month: 4, morning: 24.0, evening: 35.0 }    # 24 rows, 12 months x 2 sessions
+
+solverParameters:
+  - key: baseHoldMinutesAt30C
+    value: 180
+    description: How long raw milk holds at 30 C before quality is at risk
+```
 
 ---
 
@@ -238,7 +272,7 @@ Three details that matter:
 3. **Guard to dev/sim profiles.** Also a nice thing for a reviewer to see.
 
 **Why reseed rather than version the data?** Versioning would mean a `dataset_version`
-column on 19 tables and a filter in every query. One missed filter gives you a plan that
+column on 20 tables and a filter in every query. One missed filter gives you a plan that
 mixes two datasets — subtle, intermittent, and it would surface during the demo.
 Truncate takes ~3 seconds, keeps the schema clean, and there is no partial state to
 reason about. If multiple datasets were needed simultaneously, the right answer is
@@ -264,7 +298,7 @@ Each stresses a **different** pressure point. Five variations of "bigger" prove 
 ### `baseline.yaml`
 
 ```yaml
-# Expect: time ratio ~0.68, 100% coverage, ~19 of 22 tankers used
+# Expect: time ratio ~0.76, volume ratio ~0.21, 0 unreachable, farthest village ~43 km
 name: baseline
 seed: 88213
 villageCount: 60
@@ -277,7 +311,7 @@ twoFarmerPointRatio: 0.12
 animalsPerFarmer: { min: 2, max: 6 }
 litresPerAnimalPerDay: { min: 4, max: 7 }
 tankerCount: 22
-capacityMix: [2000, 3000, 5000]
+capacityMix: [4000]
 insulatedCount: 6
 driverCount: 26
 plantCount: 1
@@ -304,7 +338,7 @@ twoFarmerPointRatio: 0.12
 animalsPerFarmer: { min: 2, max: 6 }
 litresPerAnimalPerDay: { min: 4, max: 7 }
 tankerCount: 22
-capacityMix: [2000, 3000, 5000]
+capacityMix: [4000]
 insulatedCount: 6
 driverCount: 26
 plantCount: 1
@@ -334,7 +368,7 @@ twoFarmerPointRatio: 0.08
 animalsPerFarmer: { min: 2, max: 5 }
 litresPerAnimalPerDay: { min: 4, max: 6 }
 tankerCount: 16
-capacityMix: [3000, 5000]
+capacityMix: [4000]
 insulatedCount: 4
 driverCount: 18
 plantCount: 1

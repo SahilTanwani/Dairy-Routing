@@ -1,0 +1,83 @@
+# Reference data: the same for every dataset, reseeded alongside whichever one is loaded.
+#
+# It lives here rather than in a migration because the reseed endpoint truncates both of
+# these tables, and it lives here rather than in SeedService because hard rule 4 says
+# tuning numbers do not belong in code. This file is the one place they are written down.
+
+# Ambient temperature by month and session: Kolhapur district, in place of a weather API.
+# Mornings are collected around 06:00 and evenings around 17:00, which is why the evening
+# figure is the higher one in every month and why evenings are the hard session.
+temperatureProfiles:
+  - { month: 1,  morning: 16.0, evening: 28.0 }
+  - { month: 2,  morning: 18.0, evening: 30.0 }
+  - { month: 3,  morning: 21.0, evening: 33.0 }
+  - { month: 4,  morning: 24.0, evening: 35.0 }
+  - { month: 5,  morning: 25.0, evening: 35.0 }
+  - { month: 6,  morning: 24.0, evening: 30.0 }
+  - { month: 7,  morning: 23.0, evening: 27.0 }
+  - { month: 8,  morning: 22.0, evening: 27.0 }
+  - { month: 9,  morning: 22.0, evening: 29.0 }
+  - { month: 10, morning: 21.0, evening: 30.0 }
+  - { month: 11, morning: 18.0, evening: 28.0 }
+  - { month: 12, morning: 16.0, evening: 27.0 }
+
+# The nineteen solver parameters. Changing one of these and re-planning is a live
+# demonstration that the model is tunable without a redeploy.
+solverParameters:
+  - key: baseHoldMinutesAt30C
+    value: 180
+    description: How long raw milk holds at 30 C before quality is at risk
+  - key: q10Factor
+    value: 2.0
+    description: Bacterial growth rate doubles per 10 C rise
+  - key: insulationOffsetC
+    value: 6.0
+    description: An insulated tanker behaves as though the day were this much cooler
+  - key: minHoldMinutes
+    value: 60
+    description: Floor on the hold budget, guarding against a bad temperature reading
+  - key: maxHoldMinutes
+    value: 480
+    description: Ceiling on the hold budget, for cold days
+  - key: safetyBufferMin
+    value: 20
+    description: Margin held back against travel estimates being wrong
+  - key: circuityFactor
+    value: 1.35
+    description: Road distance as a multiple of straight-line distance
+  - key: speedUnder2Km
+    value: 15
+    description: Average km/h on village lanes
+  - key: speed2To10Km
+    value: 26
+    description: Average km/h on connecting roads
+  - key: speedOver10Km
+    value: 34
+    description: Average km/h on district roads
+  - key: morningSpeedFactor
+    value: 1.15
+    description: Roads are empty before dawn
+  - key: eveningSpeedFactor
+    value: 0.90
+    description: Evening traffic
+  - key: equityExponent
+    value: 1.6
+    description: How sharply consecutive skips raise a point's priority
+  - key: maxConsecutiveSkips
+    value: 3
+    description: Hard fairness rule; a point skipped this often must be served next
+  - key: feasibilityMargin
+    value: 0.92
+    description: Required-over-available ratio above which planning switches to coverage mode
+  - key: capacityHeadroom
+    value: 0.95
+    description: Fraction of tanker capacity planned against, since volumes vary by 15 percent
+  - key: spoilageWarnPct
+    value: 0.80
+    description: Fraction of the hold budget consumed before a WARNING is raised
+  - key: spoilageCriticalPct
+    value: 0.95
+    description: Fraction of the hold budget consumed before a CRITICAL is raised
+  - key: trackingLostMinutes
+    value: 15
+    description: Silence longer than this means tracking is lost, not merely stale

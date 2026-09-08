@@ -32,6 +32,10 @@ services:
       DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-milkroute}
       DB_USERNAME: ${POSTGRES_USER:-milkroute}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-milkroute}
+      # The reseed endpoint wipes the database, so it is limited to dev and sim.
+      # This stack is a development stack; a real deployment would not set this.
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      MILKROUTE_DATASET: ${MILKROUTE_DATASET:-baseline}
     ports:
       - "${APP_PORT:-8080}:8080"
     healthcheck:

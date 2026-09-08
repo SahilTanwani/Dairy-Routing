@@ -16,3 +16,8 @@ spring:
 
   flyway:
     enabled: true
+
+# Which dataset the startup seeder loads into an empty database, and what
+# /admin/dataset-check reports against when no dataset is named.
+milkroute:
+  dataset: ${MILKROUTE_DATASET:baseline}

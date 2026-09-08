@@ -1,0 +1,51 @@
+# baseline — the comfortable morning. Nothing binds; this is the happy path.
+#
+# Expected on dataset-check (GET /admin/dataset-check):
+#   villages 60, points ~1,250, farmers ~1,400
+#   time ratio < 0.8          <- the number that says "everyone gets served"
+#   unreachable villages 0
+#   farthest village ~45 km
+#
+# Re-run dataset-check after changing anything here. Writing a config does not
+# guarantee it lands on the constraint you meant to hit.
+
+name: baseline
+seed: 88213
+
+# geography — villages strung along 7 roads out of Kolhapur, dense near the plant
+# and thinning with distance, because that is what settlement actually looks like.
+villageCount: 60
+corridorCount: 7
+villageDistanceKm: { min: 4, max: 45 }
+pointsPerVillage: { min: 14, max: 30 }
+pointScatterMetres: 800
+
+# people — targetFarmerCount is a target, not a quota. Points fill until it is met.
+targetFarmerCount: 1400
+twoFarmerPointRatio: 0.12
+animalsPerFarmer: { min: 2, max: 6 }
+litresPerAnimalPerDay: { min: 4, max: 7 }
+
+# fleet — one capacity, dealt round-robin, so every tanker holds 4,000 L.
+#
+# The capacity constraint still runs on every merge; at this volume it simply never
+# binds, and spoilage decides every route instead. That is the honest shape of this
+# dairy: the milk does not run out of tanker, it runs out of time.
+#
+# insulatedCount is what keeps tanker assignment a real decision. Six tankers hold
+# their milk roughly six degrees cooler, so the assigner has something worth giving
+# to the riskiest route.
+tankerCount: 22
+capacityMix: [4000]
+insulatedCount: 6
+driverCount: 26
+
+# plant — Kolhapur district, Maharashtra: a genuine dairy belt. Costs nothing, and
+# tankers drive over real roads and rivers when you open a map instead of open ocean.
+plantCount: 1
+plantLat: 16.7050
+plantLng: 74.2433
+
+# what dataset-check reports against
+defaultSession: MORNING
+defaultAmbientC: 22

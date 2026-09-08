@@ -62,22 +62,22 @@ and Hibernate validation passes with no schema mismatch.
 
 ## Phase 2 — Seed data (~3 h)
 
-- [ ] **T2.1** · `DatasetConfig` + `Range` records
-- [ ] **T2.2** · `DatasetLoader` — reads `classpath:datasets/{name}.yaml` via SnakeYAML
-- [ ] **T2.3** · `GeoPoint` record + Haversine + `project(from, bearing, km)`, with tests
+- [x] **T2.1** · `DatasetConfig` + `Range` records
+- [x] **T2.2** · `DatasetLoader` — reads `classpath:datasets/{name}.yaml` via SnakeYAML
+- [x] **T2.3** · `GeoPoint` record + Haversine + `project(from, bearing, km)`, with tests
       against known distances
-- [ ] **T2.4** · Seed villages — corridor placement, uneven bearings, growing gaps,
+- [x] **T2.4** · Seed villages — corridor placement, uneven bearings, growing gaps,
       fixed `Random(seed)`
-- [ ] **T2.5** · Seed collection points — scatter within village radius
-- [ ] **T2.6** · Seed farmers — `twoFarmerPointRatio` chance of 2; compute
+- [x] **T2.5** · Seed collection points — scatter within village radius
+- [x] **T2.6** · Seed farmers — `twoFarmerPointRatio` chance of 2; compute
       `service_minutes = 2.0 + 0.35 × count` and morning/evening litres
-- [ ] **T2.7** · Seed fleet, drivers, plant — round-robin `capacityMix`, first N insulated
-- [ ] **T2.8** · Seed temperature profiles (24 rows) + the 19 solver parameters
-- [ ] **T2.9** · `SeedRunner` — `ApplicationRunner`, skips if data exists
-- [ ] **T2.10** · Reseed endpoint — `POST /admin/reseed?dataset=X`.
+- [x] **T2.7** · Seed fleet, drivers, plant — round-robin `capacityMix`, first N insulated
+- [x] **T2.8** · Seed temperature profiles (24 rows) + the 19 solver parameters
+- [x] **T2.9** · `SeedRunner` — `ApplicationRunner`, skips if data exists
+- [x] **T2.10** · Reseed endpoint — `POST /admin/reseed?dataset=X`.
       **Load config before truncating. Clear the matrix cache. Guard to dev/sim.**
-- [ ] **T2.11** · Write `baseline.yaml`
-- [ ] **T2.12** · `GET /admin/dataset-check` — counts, required vs available hot minutes
+- [x] **T2.11** · Write `baseline.yaml`
+- [x] **T2.12** · `GET /admin/dataset-check` — counts, required vs available hot minutes
       and ratio, volume vs capacity, unreachable count, farthest village km
 
 **Done when:** 60 villages, ~1,250 points, ~1,400 farmers; dataset-check shows time
