@@ -20,7 +20,6 @@ CREATE TABLE route_plan (
     -- JSONB because the feasibility report's shape will keep evolving and it is read as a
     -- whole blob, never queried field by field.
     feasibility    JSONB,
-    notes          TEXT,
     CONSTRAINT chk_plan_session CHECK (session IN ('MORNING','EVENING')),
     CONSTRAINT chk_plan_source  CHECK (source  IN ('GENERATED','LEGACY','MANUAL')),
     CONSTRAINT chk_plan_mode    CHECK (mode    IN ('FULL_SERVICE','COVERAGE_OPTIMISATION')),

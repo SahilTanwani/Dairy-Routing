@@ -10,7 +10,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.time.Instant;
 
 /**
  * The routing entity: a place a tanker physically stops. Farmers attach to it N:1, so one
@@ -52,17 +51,6 @@ public class CollectionPoint {
 
     @Column(name = "active", nullable = false)
     private boolean active = true;
-
-    /**
-     * Set when the consolidation advisory retires this point into a hub. The point is
-     * deactivated rather than deleted so its history stays readable.
-     */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "merged_into_id")
-    private CollectionPoint mergedInto;
-
-    @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
 
     public Long getId() {
         return id;
@@ -134,21 +122,5 @@ public class CollectionPoint {
 
     public void setActive(boolean active) {
         this.active = active;
-    }
-
-    public CollectionPoint getMergedInto() {
-        return mergedInto;
-    }
-
-    public void setMergedInto(CollectionPoint mergedInto) {
-        this.mergedInto = mergedInto;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
     }
 }

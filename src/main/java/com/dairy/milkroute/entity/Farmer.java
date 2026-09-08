@@ -9,7 +9,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import java.time.LocalDate;
 
 /**
  * The attribution entity: who the milk belongs to and who gets paid. Many farmers share
@@ -42,9 +41,6 @@ public class Farmer {
 
     @Column(name = "active", nullable = false)
     private boolean active = true;
-
-    @Column(name = "joined_on", nullable = false)
-    private LocalDate joinedOn;
 
     public Long getId() {
         return id;
@@ -100,13 +96,5 @@ public class Farmer {
 
     public void setActive(boolean active) {
         this.active = active;
-    }
-
-    public LocalDate getJoinedOn() {
-        return joinedOn;
-    }
-
-    public void setJoinedOn(LocalDate joinedOn) {
-        this.joinedOn = joinedOn;
     }
 }

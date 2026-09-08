@@ -80,9 +80,6 @@ public class RoutePlan {
     @Column(name = "feasibility")
     private String feasibility;
 
-    @Column(name = "notes")
-    private String notes;
-
     public Long getId() {
         return id;
     }
@@ -169,13 +166,5 @@ public class RoutePlan {
 
     public void setFeasibility(String feasibility) {
         this.feasibility = feasibility;
-    }
-
-    public String getNotes() {
-        return notes;
-    }
-
-    public void setNotes(String notes) {
-        this.notes = notes;
     }
 }

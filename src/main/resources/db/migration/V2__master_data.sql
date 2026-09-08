@@ -21,8 +21,7 @@ CREATE TABLE village (
     name       VARCHAR(120) NOT NULL,
     lat        NUMERIC(9,6) NOT NULL,
     lng        NUMERIC(9,6) NOT NULL,
-    active     BOOLEAN      NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    active     BOOLEAN      NOT NULL DEFAULT TRUE
 );
 
 -- The routing entity. A tanker stops here; it does not stop at farmers.
@@ -39,11 +38,7 @@ CREATE TABLE collection_point (
     -- the split genuinely differs by village and each is corrected independently.
     avg_morning_litres NUMERIC(7,2) NOT NULL DEFAULT 0,
     avg_evening_litres NUMERIC(7,2) NOT NULL DEFAULT 0,
-    active             BOOLEAN      NOT NULL DEFAULT TRUE,
-    -- Where a point retired by the consolidation advisory sends its farmers. Self-
-    -- referencing, so the old point is deactivated rather than deleted and history holds.
-    merged_into_id     BIGINT       REFERENCES collection_point(id),
-    created_at         TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    active             BOOLEAN      NOT NULL DEFAULT TRUE
 );
 
 CREATE INDEX idx_cp_village ON collection_point(village_id);
@@ -59,8 +54,7 @@ CREATE TABLE farmer (
     phone               VARCHAR(20),
     collection_point_id BIGINT       NOT NULL REFERENCES collection_point(id),
     animal_count        SMALLINT     NOT NULL DEFAULT 2,
-    active              BOOLEAN      NOT NULL DEFAULT TRUE,
-    joined_on           DATE         NOT NULL DEFAULT CURRENT_DATE
+    active              BOOLEAN      NOT NULL DEFAULT TRUE
 );
 
 CREATE INDEX idx_farmer_point ON farmer(collection_point_id) WHERE active;

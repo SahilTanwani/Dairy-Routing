@@ -48,9 +48,6 @@ public class PointCoverageState {
     @Column(name = "consecutive_skips", nullable = false)
     private int consecutiveSkips;
 
-    @Column(name = "skips_last_7_days", nullable = false)
-    private int skipsLast7Days;
-
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
@@ -92,14 +89,6 @@ public class PointCoverageState {
 
     public void setConsecutiveSkips(int consecutiveSkips) {
         this.consecutiveSkips = consecutiveSkips;
-    }
-
-    public int getSkipsLast7Days() {
-        return skipsLast7Days;
-    }
-
-    public void setSkipsLast7Days(int skipsLast7Days) {
-        this.skipsLast7Days = skipsLast7Days;
     }
 
     public Instant getUpdatedAt() {

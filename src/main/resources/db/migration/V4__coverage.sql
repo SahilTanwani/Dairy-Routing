@@ -14,7 +14,6 @@ CREATE TABLE point_coverage_state (
     last_served_date    DATE,
     last_served_session VARCHAR(10),
     consecutive_skips   INT NOT NULL DEFAULT 0,
-    skips_last_7_days   INT NOT NULL DEFAULT 0,
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

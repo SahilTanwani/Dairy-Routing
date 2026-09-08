@@ -7,7 +7,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.time.Instant;
 
 /**
  * A village in the collection corridor. Villages are the unit the solver blocks points
@@ -40,9 +39,6 @@ public class Village {
     /** Deactivated, never deleted: historical collection rows still point here. */
     @Column(name = "active", nullable = false)
     private boolean active = true;
-
-    @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
 
     public Long getId() {
         return id;
@@ -90,13 +86,5 @@ public class Village {
 
     public void setActive(boolean active) {
         this.active = active;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
     }
 }

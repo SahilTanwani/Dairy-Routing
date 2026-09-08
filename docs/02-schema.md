@@ -1,6 +1,6 @@
 # 02 — Database Schema
 
-Twenty-two tables in five groups. Every table traces to a sentence in the brief or a
+Twenty tables in four groups. Every table traces to a sentence in the brief or a
 decision in `ASSUMPTIONS.md`.
 
 ## How it all connects
@@ -39,8 +39,7 @@ CREATE TABLE village (
     name       VARCHAR(120) NOT NULL,
     lat        NUMERIC(9,6) NOT NULL,
     lng        NUMERIC(9,6) NOT NULL,
-    active     BOOLEAN      NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    active     BOOLEAN      NOT NULL DEFAULT TRUE
 );
 ```
 
@@ -61,9 +60,7 @@ CREATE TABLE collection_point (
     service_minutes    NUMERIC(4,1) NOT NULL DEFAULT 2.0,
     avg_morning_litres NUMERIC(7,2) NOT NULL DEFAULT 0,
     avg_evening_litres NUMERIC(7,2) NOT NULL DEFAULT 0,
-    active             BOOLEAN      NOT NULL DEFAULT TRUE,
-    merged_into_id     BIGINT       REFERENCES collection_point(id),
-    created_at         TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    active             BOOLEAN      NOT NULL DEFAULT TRUE
 );
 CREATE INDEX idx_cp_village ON collection_point(village_id);
 CREATE INDEX idx_cp_active  ON collection_point(active) WHERE active;
@@ -76,9 +73,6 @@ CREATE INDEX idx_cp_active  ON collection_point(active) WHERE active;
 - **Morning and evening litres stored separately**, not one figure with a multiplier,
   because the split genuinely differs by village and each is corrected independently by
   the variance loop.
-- **`merged_into_id`** — the consolidation advisory needs somewhere for a retired point
-  to point at. The old point is deactivated, not deleted, and its farmers repoint to the
-  hub. Historical rows stay intact.
 
 ```sql
 CREATE TABLE farmer (
@@ -88,8 +82,7 @@ CREATE TABLE farmer (
     phone               VARCHAR(20),
     collection_point_id BIGINT       NOT NULL REFERENCES collection_point(id),
     animal_count        SMALLINT     NOT NULL DEFAULT 2,
-    active              BOOLEAN      NOT NULL DEFAULT TRUE,
-    joined_on           DATE         NOT NULL DEFAULT CURRENT_DATE
+    active              BOOLEAN      NOT NULL DEFAULT TRUE
 );
 CREATE INDEX idx_farmer_point ON farmer(collection_point_id) WHERE active;
 CREATE INDEX idx_farmer_code  ON farmer(code);
@@ -211,7 +204,6 @@ CREATE TABLE route_plan (
     generated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     generation_ms  INT,
     feasibility    JSONB,
-    notes          TEXT,
     CONSTRAINT chk_plan_session CHECK (session IN ('MORNING','EVENING')),
     CONSTRAINT chk_plan_source  CHECK (source  IN ('GENERATED','LEGACY','MANUAL')),
     CONSTRAINT chk_plan_mode    CHECK (mode    IN ('FULL_SERVICE','COVERAGE_OPTIMISATION')),
@@ -288,7 +280,6 @@ CREATE TABLE point_coverage_state (
     last_served_date    DATE,
     last_served_session VARCHAR(10),
     consecutive_skips   INT NOT NULL DEFAULT 0,
-    skips_last_7_days   INT NOT NULL DEFAULT 0,
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
@@ -530,34 +521,6 @@ CREATE TABLE intake_record (
 **`oldest_milk_min` at intake is the ground truth.** After a few hundred sessions you can
 plot rejection rate against milk age and discover whether 180 min at 30 °C should really
 be 165 or 195. That is the loop that makes the model improve rather than stay a guess.
-
----
-
-# Migration V6 — Advisory
-
-```sql
-CREATE TABLE merge_proposal (
-    id               BIGSERIAL PRIMARY KEY,
-    village_id       BIGINT NOT NULL REFERENCES village(id),
-    hub_point_id     BIGINT NOT NULL REFERENCES collection_point(id),
-    minutes_saved    NUMERIC(6,2) NOT NULL,
-    farmers_affected INT NOT NULL,
-    max_walk_metres  INT NOT NULL,
-    litres_affected  NUMERIC(7,2) NOT NULL,
-    confidence       VARCHAR(10) NOT NULL,
-    status           VARCHAR(16) NOT NULL DEFAULT 'PROPOSED',
-    generated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT chk_mp_status CHECK (status IN
-        ('PROPOSED','ACCEPTED','REJECTED','IMPLEMENTED'))
-);
-
-CREATE TABLE merge_proposal_point (
-    proposal_id         BIGINT NOT NULL REFERENCES merge_proposal(id) ON DELETE CASCADE,
-    collection_point_id BIGINT NOT NULL REFERENCES collection_point(id),
-    walk_metres         INT    NOT NULL,
-    PRIMARY KEY (proposal_id, collection_point_id)
-);
-```
 
 ---
 
