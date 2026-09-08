@@ -1,21 +1,17 @@
 package com.dairy.milkroute.service;
 
-import com.dairy.milkroute.config.ClockProvider;
 import com.dairy.milkroute.dto.request.TankerPingRequest;
 import com.dairy.milkroute.dto.response.TripResponse;
 import com.dairy.milkroute.entity.Driver;
-import com.dairy.milkroute.entity.TankerPing;
 import com.dairy.milkroute.entity.Trip;
 import com.dairy.milkroute.entity.TripStop;
 import com.dairy.milkroute.enums.Session;
 import com.dairy.milkroute.error.TripNotFoundException;
 import com.dairy.milkroute.repository.DriverRepository;
 import com.dairy.milkroute.repository.FarmerRepository;
-import com.dairy.milkroute.repository.TankerPingRepository;
 import com.dairy.milkroute.repository.TripRepository;
 import com.dairy.milkroute.repository.TripStopRepository;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,21 +29,18 @@ public class DriverTripService {
     private final TripStopRepository tripStopRepo;
     private final DriverRepository driverRepo;
     private final FarmerRepository farmerRepo;
-    private final TankerPingRepository pingRepo;
-    private final ClockProvider clock;
+    private final PingService pingService;
 
     public DriverTripService(TripRepository tripRepo,
                              TripStopRepository tripStopRepo,
                              DriverRepository driverRepo,
                              FarmerRepository farmerRepo,
-                             TankerPingRepository pingRepo,
-                             ClockProvider clock) {
+                             PingService pingService) {
         this.tripRepo = tripRepo;
         this.tripStopRepo = tripStopRepo;
         this.driverRepo = driverRepo;
         this.farmerRepo = farmerRepo;
-        this.pingRepo = pingRepo;
-        this.clock = clock;
+        this.pingService = pingService;
     }
 
     /** The trip this driver is running for a session on a date. */
@@ -71,43 +64,10 @@ public class DriverTripService {
                 .orElseThrow(() -> new TripNotFoundException("no trip with id " + tripId)));
     }
 
-    /**
-     * Records GPS readings and updates the trip's last known position.
-     *
-     * <p>The denormalised position on the trip is what the ops board reads. Twenty-two trips
-     * polled every couple of seconds cannot each run an aggregate over a ping table that
-     * grows by eight thousand rows a session.
-     *
-     * <p>Only a reading newer than the one already stored moves it: a batch flushed after a
-     * dead zone arrives in whatever order the phone had it, and an old fix must not drag the
-     * tanker backwards on the board.
-     */
+    /** Delegates to {@link PingService}; the driver API is just another caller. */
     @Transactional
     public int recordPings(long tripId, List<TankerPingRequest> batch) {
-        Trip trip = tripRepo.findById(tripId)
-                .orElseThrow(() -> new TripNotFoundException("no trip with id " + tripId));
-
-        List<TankerPing> rows = new ArrayList<>(batch.size());
-        for (TankerPingRequest request : batch) {
-            TankerPing ping = new TankerPing();
-            ping.setTrip(trip);
-            ping.setLat(request.lat());
-            ping.setLng(request.lng());
-            ping.setAccuracyM(request.accuracyM());
-            ping.setRecordedAt(request.recordedAt());
-            ping.setReceivedAt(clock.now());
-            rows.add(ping);
-
-            if (trip.getLastPingAt() == null || request.recordedAt().isAfter(trip.getLastPingAt())) {
-                trip.setLastLat(request.lat());
-                trip.setLastLng(request.lng());
-                trip.setLastPingAt(request.recordedAt());
-            }
-        }
-
-        pingRepo.saveAll(rows);
-        tripRepo.save(trip);
-        return rows.size();
+        return pingService.record(tripId, batch);
     }
 
     private TripResponse toResponse(Trip trip) {

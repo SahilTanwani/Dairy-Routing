@@ -260,25 +260,37 @@ batch arrive at once.
 
 ## Phase 8 — Tracking and monitoring (~2 h)
 
-- [ ] **T8.1** · `PingService` — batch ingest, update trip's last position
-- [ ] **T8.2** · `PositionResolver` — events drive progress, pings refine
-- [ ] **T8.3** · `EtaCalculator` — with the clamped delay factor
-- [ ] **T8.4** · `EtaCalculator` tests — happy path, with delay, with skipped stops
-- [ ] **T8.5** · Confidence rules — HIGH / MEDIUM / LOW / LOST
-- [ ] **T8.6** · `FarmerQueryService` — all nine statuses with message templates,
+- [x] **T8.1** · `PingService` — batch ingest, update trip's last position
+- [x] **T8.2** · `PositionResolver` — events drive progress, pings refine
+- [x] **T8.3** · `EtaCalculator` — with the clamped delay factor
+- [x] **T8.4** · `EtaCalculator` tests — happy path, with delay, with skipped stops
+- [x] **T8.5** · Confidence rules — HIGH / MEDIUM / LOW / LOST
+- [x] **T8.6** · `FarmerQueryService` — all nine statuses with message templates,
       `guaranteedBy` from the three-strike rule
-- [ ] **T8.7** · `FarmerController` — tanker-status, collections
-- [ ] **T8.8** · `SpoilageMonitorService` — `@Scheduled` 60 s, 80%/95% thresholds,
+- [x] **T8.7** · `FarmerController` — tanker-status, collections
+- [x] **T8.8** · `SpoilageMonitorService` — `@Scheduled` 60 s, 80%/95% thresholds,
       **one-way ratchet**, tracking-lost keeps counting
-- [ ] **T8.9** · `AlertService` — raise with `dedupe_key`, update if already open
-- [ ] **T8.10** · `Mitigation` sealed interface + SkipRemaining, DivertToPlant,
+- [x] **T8.9** · `AlertService` — raise with `dedupe_key`, update if already open
+- [x] **T8.10** · `Mitigation` sealed interface + SkipRemaining, DivertToPlant,
       ContinueAsPlanned
-- [ ] **T8.11** · `MitigationService` — generate, rank by litres saved, execute with
+- [x] **T8.11** · `MitigationService` — generate, rank by litres saved, execute with
       optimistic locking. **Never auto-execute.**
-- [ ] **T8.12** · `OpsController` + `GET /api/v1/ops/board` facade
+- [x] **T8.12** · `OpsController` + `GET /api/v1/ops/board` facade
 
 **Done when:** a delayed trip escalates WARNING → CRITICAL and offers ranked mitigations
 with real numbers.
+
+**Done.** A trip three hours behind on a 35 °C morning goes CRITICAL, sorts to the top of
+the board, and raises one alert: "Projected 381 minutes of milk age against a 193 minute
+budget (197%)". Its mitigations come back ranked and honest — SKIP_REMAINING saves 40 L
+but still lands at 337 minutes, CONTINUE_AS_PLANNED arrives 188 minutes over — with
+`anySaves: false` and the summary "No option gets this load to the plant inside its
+budget." Executing with a stale version returns 409; with the right one it defers 20 stops
+and moves the trip to RETURNING.
+
+**Q6 is not reachable.** The nine farmer statuses assume a point can be merged into a hub,
+but `collection_point.merged_into_id` was removed with the consolidation advisory, so there
+is no way to reach that state and no honest branch to write. Eight are implemented.
 
 ---
 
@@ -323,6 +335,36 @@ one CRITICAL alert with zero rejected litres.
       next two weeks
 
 - [ ] **T10.5** · Final commit and push
+
+---
+
+## Known limitations
+
+Things that are wrong in a bounded, understood way. The README's *known limitations*
+section draws from here.
+
+**The ETA delay factor can read a driver as faster than he is.** `EtaCalculator`
+measures pace by comparing actual against planned arrival across the completed stops —
+the span from the first collected stop to the last. If stops were skipped in between,
+the *planned* span still includes their service time and their legs, while the *actual*
+span does not, so the ratio comes out low and the driver looks quicker than he really
+is. Every later ETA is then slightly optimistic, which is the wrong direction to be
+wrong in when the number is being read to a farmer.
+
+The size of it is bounded: the factor is clamped at 0.7, so the worst case is a 30%
+optimistic estimate rather than an arbitrary one, and the effect only appears on trips
+that have skipped stops mid-run. The fix is to compare against the planned span of the
+stops *actually visited* rather than the whole interval, which needs per-stop planned
+legs rather than just arrival times.
+
+**`temperature_profile` is one figure per month per session.** Ambient cannot move
+during a trip unless something passes an override into `SpoilageMonitorService.check`.
+The simulation and the ratchet test do; a real deployment would pass a weather reading.
+Without one, the one-way ratchet never fires in production.
+
+**Farmer status Q6 is unreachable.** A point merged into a hub has no representation
+since `collection_point.merged_into_id` was removed with the consolidation advisory.
+Eight of the nine statuses are implemented.
 
 ---
 
