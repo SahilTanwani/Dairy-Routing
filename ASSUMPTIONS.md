@@ -53,9 +53,9 @@ With `baseAt30C = 180`:
 
 | Ambient | Standard tanker | Insulated (−6 °C) |
 |---|---|---|
-| 18 °C | 429 min | 480 (capped) |
-| 22 °C | 325 min | 480 (capped) |
-| 27 °C | 230 min | 350 min |
+| 18 °C | 414 min | 480 (capped) |
+| 22 °C | 313 min | 475 min |
+| 27 °C | 222 min | 336 min |
 | 30 °C | 180 min | 273 min |
 | 35 °C | 127 min | 193 min |
 | 39 °C | 96 min | 146 min |
@@ -183,10 +183,10 @@ above rather than being designed in.
 
 | Session | Ambient | Budget each | Fleet total | Verdict |
 |---|---|---|---|---|
-| Morning | 22 °C | 325 min | 7,150 min | Comfortable (ratio 0.68) |
-| Morning (summer) | 27 °C | 230 min | 5,060 min | Tight but feasible |
-| Evening (mild) | 28 °C | 208 min | 4,576 min | Short by ~300 min |
-| Evening (summer) | 35 °C | 127 min | 3,226 min | **Short by ~1,650 min** |
+| Morning | 22 °C | 313 min | 6,886 min | Comfortable (ratio 0.71) |
+| Morning (summer) | 27 °C | 222 min | 4,884 min | Tight but feasible (ratio 0.999) |
+| Evening (mild) | 28 °C | 207 min | 4,554 min | Short by ~330 min |
+| Evening (summer) | 35 °C | 127 min | 2,794 min | **Short by ~2,090 min** |
 
 **Conclusion: the morning session fits comfortably with 22 tankers. The hot-weather
 evening session does not fit at all.** Serving every point on a 35 °C evening would

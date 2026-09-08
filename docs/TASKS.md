@@ -96,8 +96,8 @@ ratio < 0.8.
 - [ ] **T3.5** · `SpoilageCalculator` — Q10 formula with min/max clamps
 - [ ] **T3.6** · **`SpoilageCalculator` tests** ← test hardest
 
-      18→429, 22→325, 27→230, 30→180, 35→127, 39→96
-      (35, insulated) → 193
+      18→414, 22→313, 27→222, 30→180, 35→127, 39→96
+      (35, insulated) → 193; (22, insulated) → 475, just under the ceiling
       (10, false) → 480 ceiling; (55, false) → 60 floor
 
 - [ ] **T3.7** · `AmbientTemperatureProvider` interface + impl reading

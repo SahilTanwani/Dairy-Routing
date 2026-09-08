@@ -80,14 +80,14 @@ effectiveTemp = ambientC − (insulated ? 6.0 : 0)
 
 | Temperature | Standard tanker | Insulated | When |
 |---|---|---|---|
-| 18 °C | 429 min | capped 480 | Cool winter morning |
-| 22 °C | 325 min | capped 480 | Normal morning |
-| 27 °C | 230 min | 350 min | Warm morning |
+| 18 °C | 414 min | capped 480 | Cool winter morning |
+| 22 °C | 313 min | 475 min | Normal morning |
+| 27 °C | 222 min | 336 min | Warm morning |
 | 30 °C | 180 min | 273 min | Baseline |
 | 35 °C | 127 min | 193 min | Hot evening |
 | 39 °C | 96 min | 146 min | Peak summer evening |
 
-**The morning budget is roughly 2.5× the evening budget.** The same route plan cannot
+**The morning budget is 2.46× the evening budget.** The same route plan cannot
 serve both sessions. Morning routes can be long; evening routes must be short.
 
 Because insulation buys real time, the planner should give insulated tankers to the
@@ -121,10 +121,10 @@ reason not to leave milk in a tanker all day. Without the floor, a sensor error 
 
 | Session | Ambient | Budget each | Fleet total | Ratio | Verdict |
 |---|---|---|---|---|---|
-| Morning | 22 °C | 325 min | 7,150 | 0.68 | Comfortable |
-| Morning (summer) | 27 °C | 230 min | 5,060 | 0.96 | Tight |
-| Evening (mild) | 28 °C | 208 min | 4,576 | 1.07 | Short |
-| Evening (summer) | 35 °C | 127 min | 3,226 | **1.51** | **Impossible** |
+| Morning | 22 °C | 313 min | 6,886 | 0.71 | Comfortable |
+| Morning (summer) | 27 °C | 222 min | 4,884 | 0.999 | Tight |
+| Evening (mild) | 28 °C | 207 min | 4,554 | 1.07 | Short |
+| Evening (summer) | 35 °C | 127 min | 2,794 | **1.75** | **Impossible** |
 
 **The morning fits comfortably. The hot evening does not fit at all** — you would need
 about 38 tankers and the dairy has 22.

@@ -34,13 +34,14 @@ public final class SpoilageCalculator {
 
 | Input | Expected |
 |---|---|
-| (18.0, false) | 429 |
-| (22.0, false) | 325 |
-| (27.0, false) | 230 |
+| (18.0, false) | 414 |
+| (22.0, false) | 313 |
+| (27.0, false) | 222 |
 | (30.0, false) | 180 |
 | (35.0, false) | 127 |
 | (39.0, false) | 96 |
 | (35.0, true) | 193 |
+| (22.0, true) | 475 (just under the ceiling) |
 | (10.0, false) | 480 (ceiling) |
 | (55.0, false) | 60 (floor) |
 
