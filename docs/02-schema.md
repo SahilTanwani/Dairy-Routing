@@ -180,7 +180,6 @@ redeploy and a parameter change can be demonstrated live:
 | `eveningSpeedFactor` | 0.90 | Traffic |
 | `equityExponent` | 1.6 | How fast neglect raises priority |
 | `maxConsecutiveSkips` | 3 | Hard fairness rule |
-| `maxWalkMetres` | 500 | How far a farmer will carry cans |
 | `feasibilityMargin` | 0.92 | When to switch to coverage mode |
 | `capacityHeadroom` | 0.95 | Volume estimates are ±15% |
 | `spoilageWarnPct` | 0.80 | WARNING threshold |

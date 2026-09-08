@@ -41,7 +41,7 @@ Note Boot 4 starter names: `spring-boot-starter-webmvc` (not `-web`),
    1250 points. Every count is a query result or a config value.
 
 4. **Tuning numbers live in the `solver_parameter` table, not in code.** Safety buffer,
-   circuity factor, walk distance, equity exponent, spoilage constants, thresholds.
+   circuity factor, equity exponent, spoilage constants, thresholds.
 
 5. **Flyway owns the schema.** `ddl-auto: validate`. Hibernate never generates DDL.
 

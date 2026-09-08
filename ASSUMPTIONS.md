@@ -250,18 +250,36 @@ the farmer-facing response.
 
 ---
 
-## 8. Consolidation suggestions
+## 8. Consolidation suggestions — designed, then cut
 
-| Parameter | Value | Reasoning |
+Some villages have four or five collection points within a few hundred metres of each
+other, a legacy of which households volunteered a doorstep first. Serving them as one
+stop would save several minutes a session, and on a hot evening minutes are coverage.
+
+An advisory that clustered nearby points and proposed merges was designed and then
+left out of this build. It is a real feature, but it answers a different question from
+the one the brief asks — get the milk to the plant before it spoils — and building it
+would have meant two tables, an entity graph and a DBSCAN pass that nothing else in
+the system reads. The design decisions are recorded here because they are the part
+worth keeping: whoever picks this up would have to make the same four calls, and three
+of them are about people rather than geometry.
+
+| Decision | Value it would have taken | Reasoning |
 |---|---|---|
-| `maxWalkMetres` | 500 | About a 7-minute walk carrying 20 kg of cans. Beyond this, farmers stop supplying. **This is the single most important judgement call in the feature and it should be validated with farmers before any merge is implemented.** |
-| Minimum cluster size | 2 | The brief already confirms two-farmer points exist at this dairy, so merging pairs is proven acceptable here. |
-| Cross-village merges | Never proposed | Two villages can be 400 m apart and have a century of reasons not to share a collection point. The algorithm cannot see that, so it does not try. |
-| Hub selection | Minimises the **maximum** walk, not the average | The farmer with the longest walk is the one who will refuse. Optimising the worst case is what makes a proposal acceptable. |
+| Maximum walk | 500 m | About a seven-minute walk carrying 20 kg of cans. Beyond that farmers stop supplying, and a merge that loses a supplier has not saved anything. This would have been the single most important judgement call in the feature, and it should be validated with farmers before any merge is implemented rather than settled by a developer picking a round number. |
+| Minimum cluster size | 2 | The brief confirms two-farmer points already exist at this dairy, so merging a pair is proven acceptable here rather than assumed. |
+| Cross-village merges | Never proposed | Two villages can be 400 m apart and have a century of reasons not to share a collection point. The algorithm cannot see any of that, so the rule is to not try — a constraint on the search, not a penalty in the scoring. |
+| Hub selection | Minimise the **maximum** walk, not the average | The farmer with the longest walk is the one who refuses. Averaging hides exactly the person whose consent decides whether the merge happens at all. |
 
-Every proposal is flagged `requiresFieldValidation`. Walking distances are
-straight-line, not footpaths, and farmer consent is required. **The system proposes;
-humans decide.**
+Two consequences of leaving it out. There is no `merge_proposal` table and no
+`ConsolidationAnalyser`, so `collection_point.merged_into_id` was dropped as well:
+nothing would ever have set it. And `maxWalkMetres` is no longer a solver parameter,
+because the clustering radius was its only consumer.
+
+Had it been built, every proposal would have carried `requiresFieldValidation`.
+Walking distances here are straight-line, not footpaths, and farmer consent is not
+something a solver can infer. **The system would have proposed; humans would still
+decide.**
 
 ---
 

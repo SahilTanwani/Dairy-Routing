@@ -72,7 +72,7 @@ and Hibernate validation passes with no schema mismatch.
 - [ ] **T2.6** · Seed farmers — `twoFarmerPointRatio` chance of 2; compute
       `service_minutes = 2.0 + 0.35 × count` and morning/evening litres
 - [ ] **T2.7** · Seed fleet, drivers, plant — round-robin `capacityMix`, first N insulated
-- [ ] **T2.8** · Seed temperature profiles (24 rows) + the 20 solver parameters
+- [ ] **T2.8** · Seed temperature profiles (24 rows) + the 19 solver parameters
 - [ ] **T2.9** · `SeedRunner` — `ApplicationRunner`, skips if data exists
 - [ ] **T2.10** · Reseed endpoint — `POST /admin/reseed?dataset=X`.
       **Load config before truncating. Clear the matrix cache. Guard to dev/sim.**
