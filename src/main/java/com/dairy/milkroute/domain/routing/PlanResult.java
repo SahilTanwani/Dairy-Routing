@@ -35,16 +35,39 @@ public record PlanResult(
         return routes.size();
     }
 
-    public int stopsServed() {
+    /** Collection points on a route with a tanker: farmers who will actually be visited. */
+    public int pointsServed() {
         return routes.stream().mapToInt(AssignedRoute::stopCount).sum();
     }
 
-    public int stopsUnserved() {
+    /** Every point the run was asked to cover, served or not. */
+    public int pointsTotal() {
+        return pointsServed() + pointsUnserved();
+    }
+
+    public int pointsUnserved() {
         return unassignedRoutes.stream().mapToInt(PartialRoute::stopCount).sum();
     }
 
-    public double litresServed() {
+    /**
+     * Percentage of points served.
+     *
+     * <p>The headline number on a coverage-mode plan, and the one a reviewer will check
+     * against the exclusion list. Points rather than litres on purpose: a plan that serves
+     * 95% of the milk and 60% of the farmers is not a 95% plan, and reporting it as one is
+     * how the far end of the corridor gets forgotten.
+     */
+    public double coveragePct() {
+        int total = pointsTotal();
+        return total == 0 ? 100.0 : 100.0 * pointsServed() / total;
+    }
+
+    public double litresCollected() {
         return routes.stream().mapToDouble(AssignedRoute::litres).sum();
+    }
+
+    public double litresTotal() {
+        return litresCollected() + litresForgone();
     }
 
     public double litresForgone() {
@@ -54,11 +77,6 @@ public record PlanResult(
     /** Every village the run failed to place, for the exclusion records. */
     public List<VillageBlock> unservedBlocks() {
         return unassignedRoutes.stream().flatMap(route -> route.blocks().stream()).toList();
-    }
-
-    public double coverageFraction() {
-        int total = stopsServed() + stopsUnserved();
-        return total == 0 ? 1.0 : (double) stopsServed() / total;
     }
 
     /**

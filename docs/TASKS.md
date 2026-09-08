@@ -134,17 +134,38 @@ tankers.
 
 ## Phase 5 — Coverage mode (~2 h)
 
-- [ ] **T5.1** · `PointScorer` — efficiency × equity × urgency
-- [ ] **T5.2** · `PointScorer` tests — a 3-day-skipped point outscores a marginally more
-      efficient fresh one
-- [ ] **T5.3** · `CoveragePlanner` — mandatory-first seeding, greedy village insertion,
-      partial fill
-- [ ] **T5.4** · `CoverageStateService` — update skip counters, enforce the three-strike
-      rule
-- [ ] **T5.5** · Coverage report + `GET /plans/{id}/exclusions`
+**Reduced scope.** No `PointScorer` class and no `CoveragePlanner` class. The scoring is
+the merge ordering inside `RoutePlanner`, and coverage mode is that same loop degrading
+honestly rather than a second algorithm. Partial fill and ejection chains are cut.
 
-**Done when:** 35 °C switches to `COVERAGE_OPTIMISATION` automatically, ~67% coverage,
-exclusions carry reasons.
+- [x] **T5.1** · ~~`PointScorer` — efficiency × equity × urgency~~
+      **Built as `RoutePlanner.candidates()`** — `litres / marginalHotMinutes ×
+      (1 + daysSinceLastServed) ^ equityExponent`, with `equityExponent` and
+      `maxConsecutiveSkips` read from `solver_parameter`. No urgency term: the equity
+      term already covers a point skipped last session.
+- [x] **T5.2** · ~~`PointScorer` tests~~
+      **Built as `RoutePlannerCoverageTest`** — mirror-image villages where efficiency is
+      a wash, so only the history can decide which one is served. Verified by
+      neutralising `equityExponent`, which makes one of the mirrored pair fail.
+- [x] **T5.3** · ~~`CoveragePlanner` — mandatory-first seeding, greedy village insertion,
+      partial fill~~
+      **Not built.** Mandatory-first and greedy village ordering live in the merge
+      ranking; a village at `maxConsecutiveSkips` is merged before anything is ranked.
+      Partial fill and ejection chains are deliberately omitted — see
+      `docs/03-algorithms.md`.
+- [x] **T5.4** · `CoverageStateService` — resets `consecutive_skips` and sets
+      `last_served_date` for served points, increments for the rest. Runs on **publish**,
+      not on generate, so a discarded draft never marks a village as collected.
+- [x] **T5.5** · One `plan_exclusion` row per unserved point, reason `COVERAGE_LIMIT`,
+      with litres forgone. `GET /plans/{id}/exclusions` lands with `PlanController` in
+      T6.3, which is where the plan id comes from.
+
+**Done when:** 35 °C switches to `COVERAGE_OPTIMISATION` automatically, `PlanResult`
+reports `pointsServed` / `pointsTotal` / `coveragePct` / `litresCollected` /
+`litresTotal`, and exclusions carry reasons.
+
+**Not wired yet:** `CoverageStateService` has no caller until `PlanningService` (T6.1)
+persists and publishes a plan.
 
 ---
 
@@ -297,7 +318,7 @@ Everything else is bonus.
 - Read every file before committing it. If a method does not make sense to you, ask for
   a simpler version or write it yourself.
 - Modify something yourself in each of: `ConstraintChecker`, `SpoilageCalculator`,
-  `CoveragePlanner`, `EventIngestionService`, `EtaCalculator`. Nothing cements
+  `RoutePlanner.candidates()`, `EventIngestionService`, `EtaCalculator`. Nothing cements
   understanding like editing code.
 - Keep a scratch file of README sentences as you make decisions. At hour 22 you will be
   too tired to reconstruct your reasoning.

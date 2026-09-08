@@ -8,6 +8,7 @@ import com.dairy.milkroute.enums.Session;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -38,6 +39,9 @@ import java.util.Objects;
  * @param availableTankers   the fleet as it stood when the run began
  * @param availableDrivers   the drivers available, which caps how many routes are useful
  * @param driverMaxShiftMin  the shift length a route must fit inside
+ * @param coverageByPointId  service history per collection point, which the merge ordering
+ *                           uses to favour neglected villages. Empty is legitimate: a dairy
+ *                           with no history treats every point as never served.
  */
 public record PlanningContext(
         Session session,
@@ -47,7 +51,24 @@ public record PlanningContext(
         LocalTime plannedDepartAt,
         List<Tanker> availableTankers,
         List<Driver> availableDrivers,
-        int driverMaxShiftMin) {
+        int driverMaxShiftMin,
+        Map<Long, PointCoverage> coverageByPointId) {
+
+    /**
+     * A run with no coverage history, which is what a freshly seeded dairy has and what
+     * most tests want.
+     */
+    public PlanningContext(Session session,
+                           LocalDate businessDate,
+                           double ambientTempC,
+                           Plant plant,
+                           LocalTime plannedDepartAt,
+                           List<Tanker> availableTankers,
+                           List<Driver> availableDrivers,
+                           int driverMaxShiftMin) {
+        this(session, businessDate, ambientTempC, plant, plannedDepartAt,
+                availableTankers, availableDrivers, driverMaxShiftMin, Map.of());
+    }
 
     public PlanningContext {
         Objects.requireNonNull(session, "session");
@@ -56,6 +77,7 @@ public record PlanningContext(
         Objects.requireNonNull(plannedDepartAt, "plannedDepartAt");
         availableTankers = List.copyOf(availableTankers);
         availableDrivers = List.copyOf(availableDrivers);
+        coverageByPointId = Map.copyOf(coverageByPointId);
 
         if (driverMaxShiftMin <= 0) {
             throw new IllegalArgumentException(
@@ -72,6 +94,16 @@ public record PlanningContext(
      */
     public GeoPoint plantLocation() {
         return new GeoPoint(plant.getLat().doubleValue(), plant.getLng().doubleValue());
+    }
+
+    /**
+     * Service history for one point, or null when there is none.
+     *
+     * <p>Guards the null id deliberately: an unsaved point has no id, and the immutable map
+     * this reads from throws on a null key rather than returning nothing.
+     */
+    public PointCoverage coverageFor(Long collectionPointId) {
+        return collectionPointId == null ? null : coverageByPointId.get(collectionPointId);
     }
 
     /** How many tankers there are to plan with. Never a hardcoded fleet size. */

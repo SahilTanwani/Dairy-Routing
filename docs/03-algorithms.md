@@ -313,64 +313,78 @@ return required <= available * params.feasibilityMargin()      // 0.92
 This is the Team Orienteering Problem — a fleet, a time budget per vehicle, a prize per
 node, and you cannot visit them all. Worth naming.
 
-### PointScorer
+### The ranking, inside RoutePlanner
 
-`domain/routing/PointScorer.java`
+There is no `PointScorer` and no `CoveragePlanner`. The scoring lives in the merge
+ordering of the one planner, in `RoutePlanner.candidates()`, and coverage mode is the same
+loop degrading honestly rather than a second algorithm.
 
-```java
-public double score(CollectionPoint p, Session s, LocalDate today) {
-    double litres     = expectedLitres(p, s);
-    double efficiency = litres / Math.max(marginalHotCost(p), 0.5);
-    double equity     = Math.pow(1.0 + daysSinceLastCollection(p, today),
-                                 params.equityExponent());        // 1.6
-    double urgency    = wasSkippedLastSession(p, s) ? 2.5 : 1.0;
-    return efficiency * equity * urgency;
-}
-```
-
-**Test:** a point skipped for 3 days must outscore a marginally more efficient point
-served yesterday.
-
-### The hard rule
+When choosing which village to merge next:
 
 ```java
-List<CollectionPoint> mandatory = points.stream()
-    .filter(p -> consecutiveSkips(p) >= params.maxConsecutiveSkips())   // 3
-    .toList();
-// Inserted into routes BEFORE greedy selection. First claim on the budget.
+score = litres / max(marginalHotMinutes, 0.5)
+      * Math.pow(1 + daysSinceLastServed, equityExponent);   // 1.6
 ```
 
-Guarantees every farmer is served within two days. Source of `guaranteedBy` in the
-farmer response.
-
-### CoveragePlanner
-
-```
-Phase 0   Feasibility assessment → mode selection
-Phase 1   Seed routes with mandatory points
-Phase 2   Greedy VILLAGE-level insertion by score / marginalCost
-Phase 3   Partial fill: individual points in already-visited villages
-Phase 4   Ejection chains (optional — cuttable)
-Phase 5   Write plan_exclusion rows with reasons
-```
-
-**The village shortcut** — this is what makes it fast:
+`marginalHotMinutes` is what appending this village actually costs the route it would join
+— its internal work, the hop to reach it, and the change in the run home:
 
 ```java
-double marginalMinutes(CoverageRoute r, CollectionPoint p) {
-    if (r.visitsVillage(p.villageId()))
-        return p.serviceMinutes() + intraVillageDetour(r, p);   // ~2.5 min
-    return p.serviceMinutes() + newVillageDetour(r, p);         // ~14 min
-}
+to.internalMinutes()
+    + travel(from.exit(), to.entry())
+    + travel(to.exit(), plant)
+    - travel(from.exit(), plant)
 ```
 
-Six-to-one ratio, so the greedy naturally takes whole villages. Score 60 villages, not
-1,250 points. Runtime under 2 seconds.
+Hot minutes rather than distance, because hot time is the budget that runs out. A village
+that is further away but on the way home can be cheaper than a nearer one that adds a
+detour.
 
-**Ejection chains** (cuttable): three routes with 8 min slack each cannot take a 20 min
-village individually, but ejecting low-score points from one can make room. Swap only if
-`gain > loss × 1.15` — the threshold stops the plan thrashing between near-equal
-alternatives, which would make the day-over-day diff unreadable.
+**Why the equity term.** Pure efficiency ranking serves the same villages every hot day.
+The far end of the corridor is always the least efficient choice, so it is always the one
+dropped — and a cooperative that stops collecting from the same eight villages every hot
+week does not stay a cooperative. At an exponent of 1.6, three days of neglect multiplies a
+village's claim by about 7.5, which is enough to overcome a real efficiency gap rather than
+merely nudging the order.
+
+**Two cases sit outside the score.**
+
+```java
+// merged before anything is ranked at all
+worstSkips >= params.maxConsecutiveSkips()      // 3
+```
+
+A village at the skip limit stops competing. Fairness there is a rule, not a preference,
+and it is what guarantees every farmer is served within two days — the source of
+`guaranteedBy` in the farmer response.
+
+A village with no coverage row at all is treated as never served and ordered ahead of
+everything with a history, with efficiency deciding between them. On a freshly seeded dairy
+that is every village, so the first plan is ordered purely on efficiency.
+
+A village is as neglected as its most neglected point. Averaging would let a village with
+one long-ignored point look fine because its neighbours are fresh.
+
+### Coverage mode is the same loop
+
+`FeasibilityAssessor` picks the mode; `RoutePlanner` runs either way. On a day the fleet
+cannot serve everyone, the ranking decides who goes first, whatever the fleet cannot crew
+comes back in `unassignedRoutes`, and the plan is stamped `COVERAGE_OPTIMISATION` because
+that is what the arithmetic said — not because a different class produced it.
+
+`PlanResult` then reports `pointsServed`, `pointsTotal`, `coveragePct`, `litresCollected`
+and `litresTotal`, and every unserved point gets a `plan_exclusion` row with reason
+`COVERAGE_LIMIT` and the litres it forgoes.
+
+**Deliberately not built.** Both of these raise coverage a few points and both buy a class
+of bug worth more than the points:
+
+- **Partial fill** — taking some points of a village and leaving the rest. A village that is
+  silently half-served is worse than one honestly skipped, because nobody gets an exclusion
+  row and the farmers who were missed look served.
+- **Ejection chains** — undoing an accepted merge to make room for a better one. The failure
+  mode is a route left corrupt by an abandoned ejection, and the plan thrashing between
+  near-equal alternatives makes the day-over-day diff unreadable.
 
 ---
 

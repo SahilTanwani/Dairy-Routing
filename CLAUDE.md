@@ -77,7 +77,7 @@ com.dairy.milkroute
 │   ├── geo/         GeoPoint, TravelTimeProvider, HaversineTravelTime, TravelMatrix
 │   ├── spoilage/    SpoilageCalculator
 │   ├── routing/     ConstraintChecker, VillageSolver, RoutePlanner,
-│   │                CoveragePlanner, PointScorer, SequenceOptimiser
+│   │                SequenceOptimiser, TankerAssigner, FeasibilityAssessor
 │   ├── tracking/    PositionResolver, EtaCalculator
 │   ├── trip/        TripStateMachine, EventReplayer
 │   └── advisory/    TimingAdvisory
@@ -107,8 +107,8 @@ Work **ONE task at a time** from `docs/TASKS.md`, in order.
 
 For each task:
 1. Summarise what the task requires before writing code.
-2. For complex tasks (ConstraintChecker, CoveragePlanner, EventIngestionService),
-   outline the approach first and wait for confirmation.
+2. For complex tasks (ConstraintChecker, RoutePlanner.candidates(),
+   EventIngestionService), outline the approach first and wait for confirmation.
 3. Implement.
 4. Run the build and tests.
 5. Explain what you wrote in plain language.

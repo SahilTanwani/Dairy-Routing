@@ -39,6 +39,10 @@ class RoutePlannerTest {
 
     private static final GeoPoint PLANT_AT = new GeoPoint(16.7050, 74.2433);
 
+    /** The seeded solver parameters, written out so a retune does not silently move a test. */
+    private static final double EQUITY_EXPONENT = 1.6;
+    private static final int MAX_CONSECUTIVE_SKIPS = 3;
+
     private final TravelTimeProvider travel = haversine();
     private final SpoilageCalculator spoilage =
             new SpoilageCalculator(180.0, 2.0, 6.0, 60.0, 480.0);
@@ -55,7 +59,9 @@ class RoutePlannerTest {
             checker,
             new TankerAssigner(spoilageConstraint, spoilage),
             spoilage,
-            new FeasibilityAssessor(spoilage, 0.92));
+            new FeasibilityAssessor(spoilage, 0.92),
+            EQUITY_EXPONENT,
+            MAX_CONSECUTIVE_SKIPS);
 
     @Nested
     @DisplayName("sequence before constraints")
@@ -223,7 +229,7 @@ class RoutePlannerTest {
             assertThat(result.routes()).hasSize(1);
             assertThat(result.unassignedRoutes()).hasSize(1);
             assertThat(result.servedEveryone()).isFalse();
-            assertThat(result.stopsUnserved()).isEqualTo(1);
+            assertThat(result.pointsUnserved()).isEqualTo(1);
             assertThat(result.litresForgone()).isGreaterThan(0);
         }
 
@@ -280,7 +286,7 @@ class RoutePlannerTest {
             assertThat(result.feasibility().mode()).isEqualTo(PlanMode.FULL_SERVICE);
             assertThat(result.feasibility().requiredHotMinutes()).isGreaterThan(0);
             assertThat(result.feasibility().ratio()).isLessThan(0.92);
-            assertThat(result.coverageFraction()).isEqualTo(1.0);
+            assertThat(result.coveragePct()).isEqualTo(100.0);
         }
 
         @Test

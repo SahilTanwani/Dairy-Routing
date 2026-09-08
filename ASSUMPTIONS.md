@@ -229,24 +229,55 @@ and take the best — is mathematically optimal and destroys the business. It se
 same high-yield near villages every day and never serves the small far ones. Those
 farmers' milk spoils in their own cans and they leave the cooperative within a month.
 
-**What I assumed:** a cooperative cannot abandon its weakest members, so the scoring
-function has three terms and a hard rule on top.
+The reason it fails is structural rather than a tuning problem. The far end of the
+corridor is *always* the least efficient choice, so it is *always* the one dropped. The
+optimiser is not making a fresh judgement each hot day; it is making the same judgement
+every hot day, about the same eight villages, until they stop supplying.
+
+**What I assumed:** a cooperative cannot abandon its weakest members, so efficiency alone
+cannot be the objective.
+
+### What was built
+
+The ranking lives in the merge ordering inside `RoutePlanner`, not in a separate scorer.
+When the planner chooses which village to merge next:
 
 ```
-score = (litres / marginalMinutes)            ← efficiency
-      × (1 + daysSinceLastCollection) ^ 1.6   ← equity
-      × (wasSkippedLastSession ? 2.5 : 1.0)   ← urgency
+score = (litres / marginalHotMinutes)         ← efficiency
+      × (1 + daysSinceLastServed) ^ 1.6       ← equity
 ```
+
+with a hard rule above it: a village at `maxConsecutiveSkips` is merged **before** anything
+is ranked at all.
 
 | Parameter | Value | Reasoning |
 |---|---|---|
 | `equityExponent` | 1.6 | At 1.0 a point skipped 3 days is only 4× more attractive — not enough to overcome a real efficiency gap. At 1.6 it is ~7.5×, which reliably pulls it in. **Tunable.** |
-| Urgency multiplier | 2.5 | A farmer skipped this morning must not also be skipped tonight. **Estimate.** |
-| `maxConsecutiveSkips` | 3 | Hard cap. A point at 3 becomes mandatory in the next plan, inserted before anything else is considered. |
+| `maxConsecutiveSkips` | 3 | Hard cap. A village at 3 stops competing on score and is merged first. |
 
 The hard cap guarantees every farmer is served at least once every two days. That is a
 promise the dairy can actually make, and it is the source of the `guaranteedBy` date in
 the farmer-facing response.
+
+Two details worth stating. A village is as neglected as its **most** neglected point —
+averaging would let a village with one long-ignored point look fine because its neighbours
+are fresh. And a point with no history at all is ranked ahead of any amount of recorded
+neglect, rather than being folded in as a very large day count, so a village the dairy has
+never reached cannot be overtaken by arithmetic.
+
+None of this works without `CoverageStateService` writing the counters back after every
+**published** plan. Counters move on publish rather than on generate: drafts are produced
+and discarded during a normal morning, and treating a discarded draft as a served session
+would tell the system a village had its milk collected when no tanker ever left.
+
+### What was cut, and why
+
+| Cut | Why |
+|---|---|
+| **Urgency multiplier** (`wasSkippedLastSession ? 2.5 : 1.0`) | The equity term already covers it. A point skipped this morning has a non-zero `daysSinceLastServed` by tonight, and a third multiplier on the same signal is a second thing to tune for no new information. |
+| **Partial fill** — taking some points of a village and leaving the rest | Raises coverage a few points. A village that is silently half-served is worse than one honestly skipped: nobody gets an exclusion row, and the farmers who were missed look served. |
+| **Ejection chains** — undoing an accepted merge to make room for a better one | Raises coverage a few more points. The failure mode is a route left corrupt by an abandoned ejection, and the plan thrashing between near-equal alternatives makes the day-over-day diff unreadable, which is what ops actually reads. |
+| **A separate `CoveragePlanner`** | Coverage mode is the same greedy loop with the same ranking, degrading honestly and reporting what it could not place. A second algorithm for the hard days would have been a second thing to get wrong, and the hard days are the ones that matter. |
 
 ---
 
