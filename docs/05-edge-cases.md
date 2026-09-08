@@ -21,7 +21,7 @@ and it pre-answers half the interview.
 | P9 | Ambient temperature outside 0–50 °C | Clamp to range, log a warning, use the clamped value |
 | P10 | New village added since last plan | Matrix content hash changes → matrix rebuilds automatically on next plan |
 | P11 | Village deactivated mid-generation | Snapshot the point set at generation start; ignore mid-run changes |
-| P12 | Plan requested for a past date | Use the fleet as of that date via `commissioned_on` / `retired_on` |
+| P12 | Plan requested for a past date | Rejected with 400. Plans are generated for the current business date forward only; historical fleet state is not modelled |
 | P13 | Two plans published concurrently | `uq_one_published_per_session` rejects the second; caller gets 409 |
 | P14 | Publish a plan that is already published | Idempotent no-op, return current state |
 

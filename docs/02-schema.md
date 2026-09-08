@@ -1,6 +1,6 @@
 # 02 — Database Schema
 
-Nineteen tables in five groups. Every table traces to a sentence in the brief or a
+Twenty-two tables in five groups. Every table traces to a sentence in the brief or a
 decision in `ASSUMPTIONS.md`.
 
 ## How it all connects
@@ -42,7 +42,6 @@ CREATE TABLE village (
     active     BOOLEAN      NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
-CREATE INDEX idx_village_active ON village(active) WHERE active;
 ```
 
 - **`NUMERIC(9,6)` not `DOUBLE`** — six decimals is ~11 cm, far beyond GPS accuracy, and
@@ -132,8 +131,6 @@ CREATE TABLE tanker (
     insulated       BOOLEAN     NOT NULL DEFAULT FALSE,
     status          VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE',
     home_plant_id   BIGINT      NOT NULL REFERENCES plant(id),
-    commissioned_on DATE,
-    retired_on      DATE,
     CONSTRAINT chk_tanker_status CHECK (status IN
         ('AVAILABLE','ON_TRIP','MAINTENANCE','BREAKDOWN','RETIRED'))
 );
@@ -143,9 +140,6 @@ CREATE INDEX idx_tanker_available ON tanker(status) WHERE status = 'AVAILABLE';
 **Note what is missing: there is no "how long can this tanker hold milk" column.** That
 is computed at runtime from ambient temperature and `insulated`. Storing it would freeze
 a number that changes twice a day.
-
-`commissioned_on` / `retired_on` make the fleet genuinely dynamic — planning for a past
-date uses the fleet as it was then.
 
 ```sql
 CREATE TABLE driver (
@@ -364,6 +358,7 @@ CREATE TABLE trip (
         ('SCHEDULED','IN_PROGRESS','RETURNING','AT_PLANT',
          'COMPLETED','ABORTED','BREAKDOWN','BLOCKED')),
     CONSTRAINT chk_trip_risk CHECK (risk_level IN ('OK','WARNING','CRITICAL','LOST')),
+    CONSTRAINT chk_trip_session CHECK (session IN ('MORNING','EVENING')),
     UNIQUE (route_id, business_date, session)
 );
 CREATE INDEX idx_trip_active ON trip(status)
@@ -450,8 +445,6 @@ CREATE TABLE driver_event (
     client_ts       TIMESTAMPTZ NOT NULL,
     server_ts       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     payload         JSONB,
-    processed       BOOLEAN     NOT NULL DEFAULT FALSE,
-    process_error   TEXT,
     CONSTRAINT chk_event_type CHECK (event_type IN (
         'TRIP_STARTED','ARRIVED_AT_STOP','COLLECTED','DEPARTED_STOP',
         'STOP_SKIPPED','TANKER_FULL','BREAKDOWN','ARRIVED_AT_PLANT',

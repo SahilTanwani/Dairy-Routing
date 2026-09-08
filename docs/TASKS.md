@@ -36,16 +36,16 @@ Work these **in order**, one at a time. Mark `[x]` when done and commit.
 
 ## Phase 1 — Schema (~2 h)
 
-- [ ] **T1.1** · `V2__master_data.sql` — village, collection_point, farmer, plant,
+- [x] **T1.1** · `V2__master_data.sql` — village, collection_point, farmer, plant,
       tanker, driver, temperature_profile, solver_parameter. All indexes and CHECKs
       from `docs/02-schema.md`.
-- [ ] **T1.2** · `V3__planning.sql` — route_plan, route, route_stop.
+- [x] **T1.2** · `V3__planning.sql` — route_plan, route, route_stop.
       **Include `uq_one_published_per_session`.**
-- [ ] **T1.3** · `V4__coverage.sql` — point_coverage_state, plan_exclusion
-- [ ] **T1.4** · `V5__operations.sql` — trip, trip_stop, collection, driver_event,
+- [x] **T1.3** · `V4__coverage.sql` — point_coverage_state, plan_exclusion
+- [x] **T1.4** · `V5__operations.sql` — trip, trip_stop, collection, driver_event,
       tanker_ping, alert, intake_record.
       **Include `client_event_id UUID UNIQUE` and `uq_alert_open`.**
-- [ ] **T1.5** · `V6__advisory.sql` — merge_proposal, merge_proposal_point
+- [x] **T1.5** · `V6__advisory.sql` — merge_proposal, merge_proposal_point
 - [ ] **T1.6** · JPA entities, one per table. `@Version` on Trip.
 - [ ] **T1.7** · Enums — Session, TripStatus, TripStopStatus, EventType, RiskLevel,
       SkipReason, PlanStatus, PlanMode, EtaConfidence, AlertType, AlertSeverity,
