@@ -115,3 +115,7 @@ the spec.
 This is a 48-hour take-home with roughly 24 working hours remaining. Prefer correct and
 simple over complete and clever. If a task is overrunning, say so rather than
 continuing — there is a documented cut list in `docs/TASKS.md`.
+
+## Commits
+Do not add Co-Authored-By trailers or any AI attribution to commit messages.
+Write plain, descriptive messages only.
