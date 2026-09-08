@@ -20,13 +20,13 @@ Work these **in order**, one at a time. Mark `[x]` when done and commit.
 
 - [x] **T0.5** · `docker-compose.yml` (postgres:16-alpine + healthcheck) and `Dockerfile`
       (two-stage, `dependency:go-offline` in its own layer)
-- [ ] **T0.6** · `application.yml` — datasource from env with local defaults,
+- [x] **T0.6** · `application.yml` — datasource from env with local defaults,
       `ddl-auto: validate`, `open-in-view: false`
 - [x] **T0.7** · `V1__baseline.sql` (trivial table) + `GET /api/v1/health` using
       `ClockProvider`
-- [ ] **T0.8** · **Clean-machine check #1** — clone your own repo elsewhere,
+- [x] **T0.8** · **Clean-machine check #1** — clone your own repo elsewhere,
       `docker compose up --build`, curl health
-- [ ] **T0.9** · Package skeleton, including all `domain/` subpackages
+- [x] **T0.9** · Package skeleton, including all `domain/` subpackages
 
       RULE: nothing in domain/ imports org.springframework
 
