@@ -118,14 +118,14 @@ depends on these being right.
 - [ ] **T4.4** · `ConstraintChecker` tests — one per constraint, plus boundary:
       exactly at `budget − buffer` passes, one minute over fails
 - [ ] **T4.5** · `VillageBlock` record
-- [ ] **T4.6** · `VillageSolver` — nearest-neighbour + 2-opt; split oversized blocks
-- [ ] **T4.7** · `FeasibilityAssessor` — required vs available → mode selection
-- [ ] **T4.8** · `PlanningStrategy` interface
-- [ ] **T4.9** · `RoutePlanner` (full-service) — savings over blocks, greedy merge
+- [x] **T4.6** · `VillageSolver` — nearest-neighbour + 2-opt; split oversized blocks
+- [x] **T4.7** · `FeasibilityAssessor` — required vs available → mode selection
+- [x] **T4.8** · `PlanningStrategy` interface
+- [x] **T4.9** · `RoutePlanner` (full-service) — savings over blocks, greedy merge
 - [ ] **T4.10** · `SequenceOptimiser` — farthest-first seed + 2-opt on **hot time**
       (Or-opt is optional, cut if short)
-- [ ] **T4.11** · `TankerAssigner` — riskiest route gets the largest hold budget
-- [ ] **T4.12** · `PlanResult` + `FeasibilityReport`
+- [x] **T4.11** · `TankerAssigner` — riskiest route gets the largest hold budget
+- [x] **T4.12** · `PlanResult` + `FeasibilityReport`
 
 **Done when:** `POST /plans` at 22 °C serves all points in under 5 s using fewer than 22
 tankers.
