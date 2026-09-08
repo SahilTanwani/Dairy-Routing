@@ -1,20 +1,25 @@
 package com.dairy.milkroute.service;
 
 import com.dairy.milkroute.config.SolverParameters;
+import com.dairy.milkroute.config.TravelTimeFactory;
 import com.dairy.milkroute.domain.geo.GeoPoint;
+import com.dairy.milkroute.domain.geo.TravelTimeProvider;
+import com.dairy.milkroute.domain.routing.FeasibilityReport;
+import com.dairy.milkroute.domain.routing.PlanResult;
+import com.dairy.milkroute.domain.spoilage.SpoilageCalculator;
 import com.dairy.milkroute.dto.DatasetConfig;
 import com.dairy.milkroute.dto.response.DatasetDiagnostics;
 import com.dairy.milkroute.entity.CollectionPoint;
 import com.dairy.milkroute.entity.Plant;
-import com.dairy.milkroute.entity.Tanker;
 import com.dairy.milkroute.entity.Village;
 import com.dairy.milkroute.enums.Session;
-import com.dairy.milkroute.enums.TankerStatus;
 import com.dairy.milkroute.repository.CollectionPointRepository;
 import com.dairy.milkroute.repository.FarmerRepository;
 import com.dairy.milkroute.repository.PlantRepository;
 import com.dairy.milkroute.repository.TankerRepository;
 import com.dairy.milkroute.repository.VillageRepository;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -25,31 +30,37 @@ import org.springframework.transaction.annotation.Transactional;
  * meant to?
  *
  * <p>The number that matters is the time ratio, required over available hot minutes. Under
- * about 0.8 the dairy is comfortable and every point gets served; over 1 no fleet of this
- * size can serve everyone and planning has to choose. A config written to be comfortable
- * that quietly lands at 1.4 is the kind of thing best discovered here rather than in front
- * of an audience.
+ * the feasibility margin the dairy is servable and every point gets collected; over it,
+ * planning has to choose who goes without. A config written to be comfortable that quietly
+ * lands at 1.4 is the kind of thing best discovered here rather than in front of an audience.
  *
- * <h2>Provisional arithmetic</h2>
+ * <h2>One source of that number</h2>
  *
- * <p>The hold budget and the road travel times below are computed here, from parameters
- * read out of {@code solver_parameter}. That is temporary. {@code SpoilageCalculator}
- * (T3.5) and {@code HaversineTravelTime} (T3.2) are the classes that own these two
- * formulas, and this service should delegate to them once they exist; the numbers already
- * come from the same table, so the values will not move when it does. Until then, treat
- * this endpoint as a dataset-tuning aid rather than as the planner's view of the world.
+ * <p>This used to compute the ratio itself, with its own copy of the Q10 formula and its own
+ * road-speed bands. The two implementations then drifted, as duplicated arithmetic does:
+ * dataset-check reported 0.78 for a morning that {@code FeasibilityAssessor} scored at 1.06,
+ * because this side counted only the hold budget while the assessor had learned that a
+ * tanker is also bounded by the driver's shift. Two honest-looking numbers for the same
+ * question is worse than one wrong one, because there is no way to tell which to act on.
+ *
+ * <p>So it now runs a real planning pass and reports what the planner reports. Slower — a
+ * couple of hundred milliseconds rather than a few — and it cannot disagree with the thing
+ * it is meant to be checking.
  */
 @Service
 public class DatasetDiagnosticsService {
 
-    /** Estimated points a tanker serves per village visit is not assumed; see below. */
-    private static final double MINUTES_PER_HOUR = 60.0;
+    /** When each session's fleet leaves, for the pass this endpoint runs. */
+    private static final LocalTime MORNING_DEPARTURE = LocalTime.of(5, 0);
+    private static final LocalTime EVENING_DEPARTURE = LocalTime.of(16, 30);
 
     private final VillageRepository villageRepo;
     private final CollectionPointRepository pointRepo;
     private final FarmerRepository farmerRepo;
     private final TankerRepository tankerRepo;
     private final PlantRepository plantRepo;
+    private final PlanningService planningService;
+    private final TravelTimeFactory travelTimeFactory;
     private final SolverParameters parameters;
 
     public DatasetDiagnosticsService(VillageRepository villageRepo,
@@ -57,148 +68,142 @@ public class DatasetDiagnosticsService {
                                      FarmerRepository farmerRepo,
                                      TankerRepository tankerRepo,
                                      PlantRepository plantRepo,
+                                     PlanningService planningService,
+                                     TravelTimeFactory travelTimeFactory,
                                      SolverParameters parameters) {
         this.villageRepo = villageRepo;
         this.pointRepo = pointRepo;
         this.farmerRepo = farmerRepo;
         this.tankerRepo = tankerRepo;
         this.plantRepo = plantRepo;
+        this.planningService = planningService;
+        this.travelTimeFactory = travelTimeFactory;
         this.parameters = parameters;
     }
 
     @Transactional(readOnly = true)
     public DatasetDiagnostics check(DatasetConfig cfg) {
-        SolverParameters.Snapshot params = parameters.snapshot();
         Session session = Session.valueOf(cfg.defaultSession());
         double ambientC = cfg.defaultAmbientC();
+        LocalDate today = LocalDate.now(java.time.ZoneOffset.UTC);
+
+        // The planner's own view, not a second opinion about it.
+        PlanResult result = planningService.planWithoutPersisting(
+                session, today, departureFor(session), ambientC);
+        FeasibilityReport feasibility = result.feasibility();
 
         Plant plant = plantRepo.findFirstByPrimaryTrueAndActiveTrue()
                 .orElseThrow(() -> new IllegalStateException("no primary plant is seeded"));
         GeoPoint plantAt = at(plant.getLat().doubleValue(), plant.getLng().doubleValue());
 
-        List<Village> villages = villageRepo.findByActiveTrueOrderByCodeAsc();
-        List<Tanker> tankers = tankerRepo.findByStatusOrderByCapacityLitresDesc(TankerStatus.AVAILABLE);
+        Unreachable unreachable = unreachableVillages(plantAt, session, ambientC);
 
-        double required = 0;
-        double expectedLitres = 0;
+        return new DatasetDiagnostics(
+                cfg.name(),
+                session.name(),
+                ambientC,
+                villageRepo.countByActiveTrue(),
+                pointRepo.count(),
+                pointRepo.countByActiveTrue(),
+                farmerRepo.countByActiveTrue(),
+                feasibility.tankerCount(),
+                round(feasibility.requiredHotMinutes()),
+                round(feasibility.availableHotMinutes()),
+                round(feasibility.ratio()),
+                round(expectedLitres(session)),
+                fleetCapacityLitres(),
+                round(volumeRatio(session)),
+                unreachable.codes().size(),
+                unreachable.codes(),
+                round(unreachable.farthestKm()));
+    }
+
+    /**
+     * Villages no single tanker could serve and return from in time, whatever the fleet size.
+     *
+     * <p>A different question from "was it left out of the plan". A point excluded at the
+     * coverage limit could have been served; one flagged here is beyond the reach of the
+     * physics, and the honest answer for it is a local chilling unit rather than a better
+     * route.
+     *
+     * <p>Measured against the roomiest tanker on the yard and the real travel model, so it
+     * uses the same numbers the constraint checker would.
+     */
+    private Unreachable unreachableVillages(GeoPoint plant, Session session, double ambientC) {
+        SolverParameters.Snapshot params = parameters.snapshot();
+        TravelTimeProvider travel = travelTimeFactory.create();
+        SpoilageCalculator spoilage = spoilageCalculator(params);
+
+        boolean anyInsulated = tankerRepo.findAll().stream().anyMatch(t -> t.isInsulated());
+        double usable = spoilage.holdBudgetMinutes(ambientC, anyInsulated)
+                - params.get("safetyBufferMin");
+
+        List<String> codes = new ArrayList<>();
         double farthestKm = 0;
-        List<String> unreachable = new ArrayList<>();
 
-        for (Village village : villages) {
-            GeoPoint villageAt = at(village.getLat().doubleValue(), village.getLng().doubleValue());
+        for (Village village : villageRepo.findByActiveTrueOrderByCodeAsc()) {
             List<CollectionPoint> points =
                     pointRepo.findByVillageIdAndActiveTrueOrderByCodeAsc(village.getId());
             if (points.isEmpty()) {
                 continue;
             }
 
-            double straightKm = plantAt.haversineKm(villageAt);
-            farthestKm = Math.max(farthestKm, straightKm);
+            GeoPoint villageAt = at(village.getLat().doubleValue(), village.getLng().doubleValue());
+            farthestKm = Math.max(farthestKm, plant.haversineKm(villageAt));
 
-            double serviceMinutes = 0;
-            for (CollectionPoint point : points) {
-                serviceMinutes += point.getServiceMinutes().doubleValue();
-                expectedLitres += litresFor(point, session);
-            }
+            double serviceMinutes = points.stream()
+                    .mapToDouble(p -> p.getServiceMinutes().doubleValue())
+                    .sum();
 
-            // Hot time for this village: serving it, then carrying its milk home. The
-            // outbound leg is excluded because the tanker is empty on it, which is the
-            // rule the whole spoilage model turns on.
-            double returnMinutes = travelMinutes(straightKm, session, params);
-            required += serviceMinutes + returnMinutes;
+            // Hot time only: the run out carries no milk, so it is not charged here.
+            double returnMinutes =
+                    travel.between(villageAt, plant, session).toSeconds() / 60.0;
 
-            // Unreachable means physically impossible, not merely expensive: even a
-            // dedicated insulated tanker cannot serve this village and get back in time.
-            double bestBudget = holdBudgetMinutes(ambientC, true, params);
-            if (serviceMinutes + returnMinutes > bestBudget - params.get("safetyBufferMin")) {
-                unreachable.add(village.getCode());
+            if (serviceMinutes + returnMinutes > usable) {
+                codes.add(village.getCode());
             }
         }
-
-        double available = 0;
-        long fleetCapacity = 0;
-        for (Tanker tanker : tankers) {
-            available += holdBudgetMinutes(ambientC, tanker.isInsulated(), params)
-                    - params.get("safetyBufferMin");
-            fleetCapacity += tanker.getCapacityLitres();
-        }
-
-        return new DatasetDiagnostics(
-                cfg.name(),
-                session.name(),
-                ambientC,
-                villages.size(),
-                pointRepo.count(),
-                pointRepo.countByActiveTrue(),
-                farmerRepo.countByActiveTrue(),
-                tankers.size(),
-                round(required),
-                round(available),
-                available == 0 ? Double.NaN : round(required / available),
-                round(expectedLitres),
-                fleetCapacity,
-                fleetCapacity == 0 ? Double.NaN : round(expectedLitres / fleetCapacity),
-                unreachable.size(),
-                unreachable,
-                round(farthestKm));
+        return new Unreachable(codes, farthestKm);
     }
 
-    /**
-     * Hold budget from the Q10 rule: bacterial growth roughly doubles per ten degrees, so
-     * the time milk survives halves. Insulation is modelled as the day being several
-     * degrees cooler, and the result is clamped at both ends because a sensor reading of
-     * 55 C should not produce a five-minute budget.
-     *
-     * <p>Provisional; {@code SpoilageCalculator} (T3.5) owns this formula.
-     */
-    private double holdBudgetMinutes(double ambientC, boolean insulated,
-                                     SolverParameters.Snapshot params) {
-        double effectiveC = ambientC - (insulated ? params.get("insulationOffsetC") : 0);
-        double base = params.get("baseHoldMinutesAt30C");
-        double q10 = params.get("q10Factor");
-
-        double minutes = base * Math.pow(q10, (30.0 - effectiveC) / 10.0);
-        return Math.clamp(minutes, params.get("minHoldMinutes"), params.get("maxHoldMinutes"));
+    private double expectedLitres(Session session) {
+        return pointRepo.findByActiveTrueOrderByCodeAsc().stream()
+                .mapToDouble(point -> session == Session.MORNING
+                        ? point.getAvgMorningLitres().doubleValue()
+                        : point.getAvgEveningLitres().doubleValue())
+                .sum();
     }
 
-    /**
-     * Road travel time for a straight-line distance: apply the circuity factor, pick a
-     * speed band, then adjust for the session, because empty pre-dawn roads and evening
-     * traffic are not the same road.
-     *
-     * <p>Provisional; {@code HaversineTravelTime} (T3.2) owns this formula.
-     */
-    private double travelMinutes(double straightKm, Session session,
-                                 SolverParameters.Snapshot params) {
-        double roadKm = straightKm * params.get("circuityFactor");
-
-        double speed;
-        if (roadKm < 2) {
-            speed = params.get("speedUnder2Km");
-        } else if (roadKm < 10) {
-            speed = params.get("speed2To10Km");
-        } else {
-            speed = params.get("speedOver10Km");
-        }
-
-        double factor = session == Session.MORNING
-                ? params.get("morningSpeedFactor")
-                : params.get("eveningSpeedFactor");
-
-        return roadKm / (speed * factor) * MINUTES_PER_HOUR;
+    private long fleetCapacityLitres() {
+        return tankerRepo.findAll().stream().mapToLong(t -> t.getCapacityLitres()).sum();
     }
 
-    private double litresFor(CollectionPoint point, Session session) {
-        return session == Session.MORNING
-                ? point.getAvgMorningLitres().doubleValue()
-                : point.getAvgEveningLitres().doubleValue();
+    private double volumeRatio(Session session) {
+        long capacity = fleetCapacityLitres();
+        return capacity == 0 ? Double.NaN : expectedLitres(session) / capacity;
     }
 
-    private GeoPoint at(double lat, double lng) {
+    private SpoilageCalculator spoilageCalculator(SolverParameters.Snapshot params) {
+        return new SpoilageCalculator(
+                params.get("baseHoldMinutesAt30C"),
+                params.get("q10Factor"),
+                params.get("insulationOffsetC"),
+                params.get("minHoldMinutes"),
+                params.get("maxHoldMinutes"));
+    }
+
+    private static LocalTime departureFor(Session session) {
+        return session == Session.MORNING ? MORNING_DEPARTURE : EVENING_DEPARTURE;
+    }
+
+    private static GeoPoint at(double lat, double lng) {
         return new GeoPoint(lat, lng);
     }
 
-    private double round(double value) {
-        return Math.round(value * 100.0) / 100.0;
+    private static double round(double value) {
+        return Double.isFinite(value) ? Math.round(value * 100.0) / 100.0 : value;
+    }
+
+    private record Unreachable(List<String> codes, double farthestKm) {
     }
 }

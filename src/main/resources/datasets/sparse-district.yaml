@@ -1,0 +1,47 @@
+# sparse-district — a different kind of failure.
+#
+# baseline and heat-crisis are both about a fleet that is too small for the work. This
+# one is about geography: villages so far out that the round trip physically exceeds the
+# hold window, whatever the fleet. No amount of routing fixes them, and saying so is a
+# better answer than pretending to route around physics. The right recommendation for
+# these villages is a local chilling unit.
+#
+# Expected on dataset-check (GET /api/v1/admin/dataset-check):
+#   villages 45, points 574, farmers 611
+#   time ratio 2.90
+#   unreachable villages 10     <- the number this dataset exists to produce
+#   farthest village 111.3 km
+#
+# Tuning note: unreachable is measured against the roomiest tanker on the yard, so it
+# needs villageDistanceKm.max high enough that service time plus the run home exceeds
+# the insulated budget at this temperature, minus the safety buffer. Measured while
+# tuning: max 95 -> 3 unreachable, 105 -> 5, 115 -> 10, 120 -> 11. Landed on 115 rather
+# than the 105 that first cleared the bar, because exactly five is one parameter retune
+# away from four and this dataset exists to make the point reliably.
+
+name: sparse-district
+seed: 44102
+
+# geography — fewer roads, far longer corridors than baseline
+villageCount: 45
+corridorCount: 4
+villageDistanceKm: { min: 12, max: 115 }
+pointsPerVillage: { min: 8, max: 16 }
+pointScatterMetres: 1200
+
+targetFarmerCount: 620
+twoFarmerPointRatio: 0.08
+animalsPerFarmer: { min: 2, max: 5 }
+litresPerAnimalPerDay: { min: 4, max: 6 }
+
+tankerCount: 16
+capacityMix: [4000]
+insulatedCount: 4
+driverCount: 18
+
+plantCount: 1
+plantLat: 16.7050
+plantLng: 74.2433
+
+defaultSession: EVENING
+defaultAmbientC: 30

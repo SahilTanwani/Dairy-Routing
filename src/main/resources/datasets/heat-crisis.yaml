@@ -1,0 +1,55 @@
+# heat-crisis — the same dairy, on a hot evening.
+#
+# IDENTICAL to baseline except the last two lines. Same seed, so the same villages,
+# the same collection points, the same farmers, the same fleet. Diff the two files on
+# screen and the entire difference is the weather: that is what makes the comparison
+# an experiment rather than an anecdote.
+#
+# Expected on dataset-check (GET /api/v1/admin/dataset-check):
+#   villages 60, points 1,250, farmers 1,408
+#   time ratio 2.55           <- spoilage binds hard; nothing like enough fleet
+#   unreachable villages 1    <- almost all are hard rather than impossible; the
+#                                shortfall here is fleet, not geography
+#
+# Re-run dataset-check after changing anything here.
+
+name: heat-crisis
+seed: 88213
+
+# geography — villages strung along 7 roads out of Kolhapur, dense near the plant
+# and thinning with distance, because that is what settlement actually looks like.
+villageCount: 60
+corridorCount: 7
+villageDistanceKm: { min: 4, max: 45 }
+pointsPerVillage: { min: 14, max: 30 }
+pointScatterMetres: 800
+
+# people — targetFarmerCount is a target, not a quota. Points fill until it is met.
+targetFarmerCount: 1400
+twoFarmerPointRatio: 0.12
+animalsPerFarmer: { min: 2, max: 6 }
+litresPerAnimalPerDay: { min: 4, max: 7 }
+
+# fleet — one capacity, dealt round-robin, so every tanker holds 4,000 L.
+#
+# The capacity constraint still runs on every merge; at this volume it simply never
+# binds, and spoilage decides every route instead. That is the honest shape of this
+# dairy: the milk does not run out of tanker, it runs out of time.
+#
+# insulatedCount is what keeps tanker assignment a real decision. Six tankers hold
+# their milk roughly six degrees cooler, so the assigner has something worth giving
+# to the riskiest route.
+tankerCount: 22
+capacityMix: [4000]
+insulatedCount: 6
+driverCount: 26
+
+# plant — Kolhapur district, Maharashtra: a genuine dairy belt. Costs nothing, and
+# tankers drive over real roads and rivers when you open a map instead of open ocean.
+plantCount: 1
+plantLat: 16.7050
+plantLng: 74.2433
+
+# what dataset-check reports against
+defaultSession: EVENING        # <- changed
+defaultAmbientC: 35            # <- changed

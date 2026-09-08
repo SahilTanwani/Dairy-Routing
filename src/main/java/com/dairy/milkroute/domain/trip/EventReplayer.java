@@ -70,6 +70,13 @@ public final class EventReplayer {
                 TripStop stop = stopFor(stops, event);
                 if (stop != null) {
                     stop.setDepartedAt(event.clientTs());
+                    // Leaving the last village is the moment a tanker starts for home.
+                    // Without this a trip has no way to reach RETURNING at all: there is no
+                    // driver event meaning "heading back", and a phone reporting arrival at
+                    // the plant straight from IN_PROGRESS would be making an illegal move.
+                    if (nothingLeftToCollect(stops)) {
+                        move(trip, TripStatus.RETURNING);
+                    }
                 }
                 yield stop;
             }
@@ -85,6 +92,9 @@ public final class EventReplayer {
                 yield null;
             }
             case ARRIVED_AT_PLANT -> {
+                // A tanker at the plant was self-evidently on its way there, so a missing
+                // departure event is inferred rather than allowed to strand the trip.
+                move(trip, TripStatus.RETURNING);
                 move(trip, TripStatus.AT_PLANT);
                 trip.setPlantArrivalAt(event.clientTs());
                 yield null;
@@ -218,6 +228,14 @@ public final class EventReplayer {
         if (stateMachine.canTransition(trip.getStatus(), target)) {
             stateMachine.transition(trip, target);
         }
+    }
+
+    /** True once every stop has been collected from, skipped or deferred. */
+    private static boolean nothingLeftToCollect(List<TripStop> stops) {
+        return stops.stream().noneMatch(stop ->
+                stop.getStatus() == TripStopStatus.PENDING
+                        || stop.getStatus() == TripStopStatus.EN_ROUTE
+                        || stop.getStatus() == TripStopStatus.ARRIVED);
     }
 
     private static TripStop stopFor(List<TripStop> stops, ReplayableEvent event) {

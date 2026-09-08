@@ -1,0 +1,32 @@
+# happy-morning — an ordinary session, start to finish.
+#
+# The baseline dairy, a cool morning, no weather surprises. Every driver still goes
+# through one signal-loss window, because a session where nothing goes wrong with the
+# network is not an ordinary session — it is a lucky one.
+#
+# What it demonstrates: trips created from the published plan, events driving progress
+# through the real API, the reconnect producing duplicates that change nothing, and
+# trips finishing COMPLETED with milk recorded per farmer.
+
+name: happy-morning
+dataset: baseline
+session: MORNING
+businessDate: 2026-10-15
+ambientC: 22.0
+
+# Simulated time. Starts before departure so the first tick is the fleet leaving.
+startAt: 2026-10-15T04:45:00Z
+stepSeconds: 30
+# Baseline routes run to about fifty stops at roughly nine simulated minutes each, so a
+# full session is a little over eleven hundred steps. Measured at 900 and two drivers were
+# still out; the cap is a guard against a stuck run, not a budget.
+maxSteps: 1400
+
+# The signal-loss window, in minutes after the start. Every driver is dark for this
+# stretch and reconnects at the end of it.
+offlineFromMinutes: 40
+offlineUntilMinutes: 70
+
+# No mid-run weather change: the ratchet has nothing to do here.
+ambientRiseAtMinutes: null
+ambientRiseToC: null

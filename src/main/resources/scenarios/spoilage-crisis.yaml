@@ -1,0 +1,31 @@
+# spoilage-crisis — the same fleet, on an evening that turns hot.
+#
+# The session starts at 30 C, which the plan was built for, and forty minutes in the air
+# reaches 38 C. That is the case the one-way ratchet exists for: the hold budget shrinks
+# mid-trip, every deadline moves earlier, DEADLINE_TIGHTENED is raised, and trips that
+# were comfortable become WARNING and then CRITICAL without anybody driving any slower.
+#
+# The ambient rise is applied through the monitor's override rather than by editing the
+# temperature profile, because the profile holds one figure per month per session and
+# cannot express weather changing during a run.
+#
+# What it demonstrates: the ratchet firing, alerts escalating WARNING to CRITICAL with
+# the dedupe key preventing forty copies of each, and mitigations offered with real
+# numbers — including the honest case where nothing saves the load.
+
+name: spoilage-crisis
+dataset: heat-crisis
+session: EVENING
+businessDate: 2026-10-15
+ambientC: 30.0
+
+startAt: 2026-10-15T16:15:00Z
+stepSeconds: 30
+maxSteps: 1400
+
+offlineFromMinutes: 50
+offlineUntilMinutes: 80
+
+# The weather turns, forty minutes in.
+ambientRiseAtMinutes: 40
+ambientRiseToC: 38.0

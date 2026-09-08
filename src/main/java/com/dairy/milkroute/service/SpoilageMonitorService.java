@@ -83,14 +83,29 @@ public class SpoilageMonitorService {
     }
 
     @Scheduled(fixedDelay = SWEEP_MILLIS)
-    @Transactional
     public void sweep() {
+        sweep(null);
+    }
+
+    /**
+     * One pass over every trip on the road, optionally against a stated ambient temperature.
+     *
+     * <p>Transactional and loading its own trips, which matters more than it looks. Handing
+     * this method a list of trips fetched elsewhere means handing it detached entities, and
+     * the first {@code trip.getTanker()} then fails on a lazy proxy with no session — an
+     * error that gets caught per trip and logged, so the sweep appears to run while doing
+     * nothing at all. Owning the query keeps the entities managed.
+     *
+     * @param ambientOverrideC ambient right now, or null to read the temperature profile
+     */
+    @Transactional
+    public void sweep(Double ambientOverrideC) {
         List<Trip> active = tripRepo.findByStatusIn(
                 List.of(TripStatus.IN_PROGRESS, TripStatus.RETURNING));
 
         for (Trip trip : active) {
             try {
-                check(trip);
+                check(trip, ambientOverrideC);
             } catch (RuntimeException e) {
                 // One bad trip must not stop the sweep. The other twenty-one are still
                 // carrying milk and still need watching.
