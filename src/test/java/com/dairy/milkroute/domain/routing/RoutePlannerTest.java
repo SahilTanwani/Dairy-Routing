@@ -57,8 +57,9 @@ class RoutePlannerTest {
             travel,
             new SequenceOptimiser(travel, spoilageConstraint),
             checker,
-            new TankerAssigner(spoilageConstraint, spoilage),
+            new TankerAssigner(spoilageConstraint, spoilage, checker),
             spoilage,
+            spoilageConstraint,
             new FeasibilityAssessor(spoilage, 0.92),
             EQUITY_EXPONENT,
             MAX_CONSECUTIVE_SKIPS);

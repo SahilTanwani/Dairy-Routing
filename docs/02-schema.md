@@ -185,6 +185,7 @@ redeploy and a parameter change can be demonstrated live:
 | `spoilageWarnPct` | 0.80 | WARNING threshold |
 | `spoilageCriticalPct` | 0.95 | CRITICAL threshold |
 | `trackingLostMinutes` | 15 | No ping for this long → LOST |
+| `ambientShiftCPerHour` | 3.0 | Ambient movement per hour off the usual departure time |
 
 ---
 

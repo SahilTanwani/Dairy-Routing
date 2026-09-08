@@ -54,16 +54,18 @@ class RoutePlannerCoverageTest {
             new SpoilageCalculator(180.0, 2.0, 6.0, 60.0, 480.0);
     private final SpoilageConstraint spoilageConstraint =
             new SpoilageConstraint(travel, spoilage, 20.0);
+    private final ConstraintChecker checker = new ConstraintChecker(List.of(
+            new CapacityConstraint(0.95),
+            spoilageConstraint,
+            new ShiftLengthConstraint(travel, spoilageConstraint),
+            new PlantWindowConstraint(travel, spoilageConstraint)));
     private final RoutePlanner planner = new RoutePlanner(
             travel,
             new SequenceOptimiser(travel, spoilageConstraint),
-            new ConstraintChecker(List.of(
-                    new CapacityConstraint(0.95),
-                    spoilageConstraint,
-                    new ShiftLengthConstraint(travel, spoilageConstraint),
-                    new PlantWindowConstraint(travel, spoilageConstraint))),
-            new TankerAssigner(spoilageConstraint, spoilage),
+            checker,
+            new TankerAssigner(spoilageConstraint, spoilage, checker),
             spoilage,
+            spoilageConstraint,
             new FeasibilityAssessor(spoilage, 0.92),
             EQUITY_EXPONENT,
             MAX_CONSECUTIVE_SKIPS);

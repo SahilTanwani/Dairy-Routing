@@ -408,7 +408,11 @@ return new TimingAdvisory(
     litresRecoveredPerYear(current, shifted));
 ```
 
-Expected on `heat-crisis`: 16:30 @ 35 °C, 127 min, 67% → 18:30 @ 29 °C, 194 min, 91%.
+Measured on `baseline` at 35 °C: 16:30 @ 35 °C, 127 min, **19%** → 18:30 @ 29 °C, 193 min,
+**37%**. The temperatures and budgets are as designed; the coverage figures are lower than
+an earlier estimate of 67% → 91% because that estimate assumed spoilage was the only
+binding constraint. It is not — the 300-minute driver shift and the 22:00 plant close both
+bite as well. The gain of ~29 points at zero cost is the finding, and it survives.
 
 ### ChillingUnitAdvisory (cuttable)
 

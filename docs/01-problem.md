@@ -117,17 +117,22 @@ reason not to leave milk in a tanker all day. Without the floor, a sensor error 
                                           ≈ 4,880 tanker-minutes
 ```
 
-**Capacity available = 22 tankers × hold budget:**
+**Capacity available — bounded by two things, not one.** A tanker can only work
+`min(holdBudget, driverShift)` minutes on milk. Milk spoils, and drivers go home:
 
-| Session | Ambient | Budget each | Fleet total | Ratio | Verdict |
-|---|---|---|---|---|---|
-| Morning | 22 °C | 313 min | 6,886 | 0.71 | Comfortable |
-| Morning (summer) | 27 °C | 222 min | 4,884 | 0.999 | Tight |
-| Evening (mild) | 28 °C | 207 min | 4,554 | 1.07 | Short |
-| Evening (summer) | 35 °C | 127 min | 2,794 | **1.75** | **Impossible** |
+| Session | Ambient | Hold budget | Driver shift | Usable each | Fleet total | Required | Ratio | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| Morning | 22 °C | 313 min | 300 min | **300** | 6,600 | 7,021 | **1.06** | Short |
+| Evening | 35 °C | 127 min | 300 min | **127** | 3,190 | 8,133 | **2.55** | **Impossible** |
 
-**The morning fits comfortably. The hot evening does not fit at all** — you would need
-about 38 tankers and the dairy has 22.
+**Neither session fits, and they fail for different reasons.** In the morning the milk
+would last five hours and the driver goes home after five, so the *roster* binds: the
+system serves 868 of 1,250 points on 22 tankers and would need about 26. In the evening
+the milk is finished in two hours and the shift never gets a chance to matter, so
+*spoilage* binds: 241 of 1,250 points, and full service would need about 61 tankers.
+
+These are measured, not estimated — they are what the running system reports on
+`baseline`.
 
 The dairy is almost certainly losing evening milk in summer and treating it as normal.
 Making that visible, with arithmetic, is the most valuable thing this system does.
@@ -136,13 +141,16 @@ Making that visible, with arithmetic, is the most valuable thing this system doe
 
 | Fix | Cost | Effect |
 |---|---|---|
-| **Depart 18:30 instead of 16:30** | **Nothing** | Ambient 35 → 29 °C, budget 127 → 194 min, coverage 67% → 91% |
-| Merge nearby collection points | Farmers walk further | Frees ~800 min of fleet time |
-| Insulate 8 more tankers | Capital | Coverage 67% → 79% |
-| Chilling units in 8 far villages | Capital | Removes them from the time-critical set |
+| **Depart 18:30 instead of 16:30** (evening) | **Nothing** | Ambient 35 → 29 °C, budget 127 → 193 min, coverage **19% → 37%** |
+| **Extend the morning shift 300 → 600 min** | **Nothing but a roster** | Coverage **69% → 97%** (868 → 1,216 points), ratio 1.06 → 0.89 |
+| Insulate more tankers | Capital | Raises the evening budget 127 → 193 per tanker converted |
+| Chilling units in the far villages | Capital | Removes them from the time-critical set |
 
-The first one is free. The dairy has collected at 16:30 since before anyone remembers,
-and nobody had worked out that simply waiting two hours recovers a quarter of the lost
+The first two cost nothing but a decision, and both are measured end to end rather than
+estimated. Between them they are worth more than anything the dairy could buy.
+
+The dairy has collected at 16:30 since before anyone remembers, and nobody had worked out
+that simply waiting two hours triples evening coverage. Recovering a quarter of the lost
 evening milk.
 
 ---

@@ -52,6 +52,19 @@ public final class SpoilageConstraint implements RouteConstraint {
     }
 
     /**
+     * How much hot time this tanker can actually be given today: its hold budget, less the
+     * safety buffer.
+     *
+     * <p>Public so the planner can ask whether a whole set of routes could be crewed without
+     * duplicating the arithmetic. One definition of "usable" in one place, so a check made
+     * during merging and the check made at assignment cannot disagree.
+     */
+    public double usableBudgetMinutes(Tanker tanker, PlanningContext ctx) {
+        return spoilage.holdBudgetMinutes(ctx.ambientTempC(), tanker.isInsulated())
+                - safetyBufferMinutes;
+    }
+
+    /**
      * Minutes the oldest milk spends aboard, from first collection to unload.
      *
      * <p>Public so the planner can report a route's hot time and slack without repeating

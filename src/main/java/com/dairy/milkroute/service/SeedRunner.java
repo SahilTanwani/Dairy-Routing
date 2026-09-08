@@ -1,5 +1,6 @@
 package com.dairy.milkroute.service;
 
+import com.dairy.milkroute.config.ReadinessState;
 import com.dairy.milkroute.dto.response.SeedResult;
 import com.dairy.milkroute.repository.VillageRepository;
 import org.slf4j.Logger;
@@ -26,14 +27,17 @@ public class SeedRunner implements ApplicationRunner {
     private final DatasetLoader loader;
     private final SeedService seedService;
     private final String datasetName;
+    private final ReadinessState readiness;
 
     public SeedRunner(VillageRepository villageRepo,
                       DatasetLoader loader,
                       SeedService seedService,
+                      ReadinessState readiness,
                       @Value("${milkroute.dataset:baseline}") String datasetName) {
         this.villageRepo = villageRepo;
         this.loader = loader;
         this.seedService = seedService;
+        this.readiness = readiness;
         this.datasetName = datasetName;
     }
 
@@ -42,6 +46,7 @@ public class SeedRunner implements ApplicationRunner {
         long existing = villageRepo.count();
         if (existing > 0) {
             log.info("Database already holds {} villages; skipping seed", existing);
+            readiness.markReady();
             return;
         }
 
@@ -51,5 +56,9 @@ public class SeedRunner implements ApplicationRunner {
                 result.dataset(), result.seed(), result.villages(), result.points(),
                 result.farmers(), result.tankers(), result.drivers(), result.plants(),
                 result.elapsedMs());
+
+        // Only now is the application genuinely able to answer. Until this line the
+        // solver parameters do not exist and every planning call would fail.
+        readiness.markReady();
     }
 }

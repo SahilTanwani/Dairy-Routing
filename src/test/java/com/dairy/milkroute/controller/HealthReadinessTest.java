@@ -1,10 +1,8 @@
 package com.dairy.milkroute.controller;
 
-import java.time.Instant;
-
 import com.dairy.milkroute.config.ClockProvider;
 import com.dairy.milkroute.config.ReadinessState;
-
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -17,30 +15,33 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * A web slice — no datasource, so this runs without a database.
+ * The other half of the health contract: what it says before the dairy is loaded.
  *
- * <p>The fixed clock is the point: because the controller takes a {@link ClockProvider}
- * rather than reading the wall clock, the timestamp in the response is an exact
- * assertion instead of a range check.
+ * <p>A separate class rather than a nested one because each needs its own
+ * {@link ReadinessState} bean, and a shared one would make the two tests depend on the order
+ * they happen to run in.
+ *
+ * <p>Worth a test of its own because the failure it prevents is a confusing one. Tomcat
+ * accepts requests before the seeder finishes; a caller that trusts a 200 in that window gets
+ * an error about a missing solver parameter and goes looking for a bug in the solver.
  */
 @WebMvcTest(HealthController.class)
-class HealthControllerTest {
+class HealthReadinessTest {
 
     private static final Instant FIXED = Instant.parse("2026-09-08T04:30:00Z");
 
     @TestConfiguration
-    static class FixedClockConfig {
+    static class NotReadyConfig {
+
         @Bean
         ClockProvider clockProvider() {
             return () -> FIXED;
         }
 
-        /** Seeded and ready, which is the state the 200 case describes. */
+        /** Never marked ready: the state during startup, before any dairy exists. */
         @Bean
         ReadinessState readinessState() {
-            ReadinessState state = new ReadinessState();
-            state.markReady();
-            return state;
+            return new ReadinessState();
         }
     }
 
@@ -48,12 +49,10 @@ class HealthControllerTest {
     private MockMvc mockMvc;
 
     @Test
-    void healthReportsUpWithTheInjectedClock() throws Exception {
+    void healthIsUnavailableUntilTheDairyIsLoaded() throws Exception {
         mockMvc.perform(get("/api/v1/health"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("UP"))
-                .andExpect(jsonPath("$.service").value("milkroute"))
-                .andExpect(jsonPath("$.timestamp").value("2026-09-08T04:30:00Z"));
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.status").value("STARTING"))
+                .andExpect(jsonPath("$.service").value("milkroute"));
     }
-
 }

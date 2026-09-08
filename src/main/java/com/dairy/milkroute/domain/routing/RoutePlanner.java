@@ -7,7 +7,9 @@ import com.dairy.milkroute.entity.Tanker;
 import com.dairy.milkroute.enums.PlanMode;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Phase two, full-service mode: combine village blocks into as few routes as the
@@ -57,6 +59,7 @@ public final class RoutePlanner implements PlanningStrategy {
     private final ConstraintChecker checker;
     private final TankerAssigner assigner;
     private final SpoilageCalculator spoilage;
+    private final SpoilageConstraint spoilageConstraint;
     private final FeasibilityAssessor feasibilityAssessor;
     private final double equityExponent;
     private final int maxConsecutiveSkips;
@@ -72,6 +75,7 @@ public final class RoutePlanner implements PlanningStrategy {
                         ConstraintChecker checker,
                         TankerAssigner assigner,
                         SpoilageCalculator spoilage,
+                        SpoilageConstraint spoilageConstraint,
                         FeasibilityAssessor feasibilityAssessor,
                         double equityExponent,
                         int maxConsecutiveSkips) {
@@ -80,6 +84,7 @@ public final class RoutePlanner implements PlanningStrategy {
         this.checker = checker;
         this.assigner = assigner;
         this.spoilage = spoilage;
+        this.spoilageConstraint = spoilageConstraint;
         this.feasibilityAssessor = feasibilityAssessor;
         this.equityExponent = equityExponent;
         this.maxConsecutiveSkips = maxConsecutiveSkips;
@@ -101,6 +106,14 @@ public final class RoutePlanner implements PlanningStrategy {
                 .map(PartialRoute::of)
                 .toList());
 
+        // Hot time per route, kept alongside so the assignability check does not recompute
+        // it for every candidate. Identity-keyed: two routes over the same villages are
+        // still two routes, and record equality would silently merge their entries.
+        Map<PartialRoute, Double> hotByRoute = new IdentityHashMap<>();
+        for (PartialRoute route : routes) {
+            hotByRoute.put(route, spoilageConstraint.hotMinutes(route, ctx));
+        }
+
         for (Candidate candidate : candidates(blocks, ctx)) {
             PartialRoute endingWithI = routeEndingWith(routes, candidate.from());
             PartialRoute startingWithJ = routeStartingWith(routes, candidate.to());
@@ -118,9 +131,18 @@ public final class RoutePlanner implements PlanningStrategy {
                 continue;
             }
 
+            double mergedHot = spoilageConstraint.hotMinutes(merged, ctx);
+            if (!wholeSetCouldBeCrewed(routes, endingWithI, startingWithJ, mergedHot,
+                    hotByRoute, ctx)) {
+                continue;
+            }
+
             routes.remove(endingWithI);
             routes.remove(startingWithJ);
+            hotByRoute.remove(endingWithI);
+            hotByRoute.remove(startingWithJ);
             routes.add(merged);
+            hotByRoute.put(merged, mergedHot);
         }
 
         TankerAssigner.Assignment assignment = assigner.assign(routes, ctx);
@@ -230,6 +252,62 @@ public final class RoutePlanner implements PlanningStrategy {
                 + legMinutes(from.exitLocation(), to.entryLocation(), ctx)
                 + legMinutes(to.exitLocation(), plant, ctx)
                 - legMinutes(from.exitLocation(), plant, ctx);
+    }
+
+    /**
+     * Could the whole set of routes be crewed, if this merge were accepted?
+     *
+     * <p>Asking whether a merged route can be run by <em>some</em> tanker is not enough, and
+     * that gap is a real defect rather than a theoretical one. There are six insulated
+     * tankers; the merge loop was happily building a dozen routes that only an insulated
+     * tanker could run, every one of them individually feasible. The assigner then refused
+     * the ones it could not crew and coverage collapsed — the plan had been counting on
+     * tankers that do not exist.
+     *
+     * <p>The test is the classic greedy one: sort the routes by how much hot time they need,
+     * sort the fleet by how much it can give, pair them off from the top, and if the
+     * hungriest route fits the roomiest tanker, the second-hungriest fits the second, and so
+     * on to the end, the set can be crewed. It only models spoilage — shift length and the
+     * plant window are already settled per route by the constraint check above — and it is a
+     * necessary condition, which is exactly what a merge gate needs to be.
+     *
+     * <p>Cheap on purpose: sorting a few dozen doubles, against cached hot times, inside a
+     * loop that runs thousands of times.
+     */
+    private boolean wholeSetCouldBeCrewed(List<PartialRoute> routes,
+                                          PartialRoute replacedA,
+                                          PartialRoute replacedB,
+                                          double mergedHot,
+                                          Map<PartialRoute, Double> hotByRoute,
+                                          PlanningContext ctx) {
+        List<Double> needed = new ArrayList<>(routes.size());
+        for (PartialRoute route : routes) {
+            if (route != replacedA && route != replacedB) {
+                needed.add(hotByRoute.get(route));
+            }
+        }
+        needed.add(mergedHot);
+
+        List<Tanker> fleet = ctx.availableTankers();
+
+        needed.sort(Comparator.reverseOrder());
+        List<Double> available = fleet.stream()
+                .map(tanker -> spoilageConstraint.usableBudgetMinutes(tanker, ctx))
+                .sorted(Comparator.reverseOrder())
+                .toList();
+
+        // Only the hungriest routes are checked, as many as there are tankers. Requiring the
+        // whole set to be crewable would block every merge at the start of the run, when
+        // there are sixty routes and twenty-two tankers — and merging is precisely how that
+        // count comes down. What must not happen is building more *demanding* routes than
+        // the fleet has tankers able to take them, and that is what this compares.
+        int checked = Math.min(needed.size(), available.size());
+        for (int i = 0; i < checked; i++) {
+            if (needed.get(i) > available.get(i)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

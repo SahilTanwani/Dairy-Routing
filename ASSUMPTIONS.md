@@ -167,38 +167,66 @@ profile. The planner does not know which it is using.
 ## 5. The feasibility finding
 
 This is the most important thing the system produces, and it falls out of the numbers
-above rather than being designed in.
+rather than being designed in. The figures below are what the running system reports on
+`baseline`, not estimates.
 
-**Work required per session:**
+### A tanker is bounded by two things
 
-```
-1,250 stops × ~3.2 min in-village work   = 4,000 min
-~22 inter-village hops × ~12 min          =   264 min
-22 return legs to plant × ~28 min         =   616 min
-                                            ---------
-                                            ≈ 4,880 tanker-minutes
-```
+Milk spoils, and drivers go home. A tanker can only contribute
+`min(holdBudget, driverShift)` minutes of on-milk work, and which of the two binds depends
+entirely on the weather:
 
-**Capacity available = 22 tankers × hold budget:**
+| Session | Ambient | Hold budget (plain / insulated) | Driver shift | Usable each | Fleet total | Required | Ratio |
+|---|---|---|---|---|---|---|---|
+| Morning | 22 °C | 313 / 475 min | 300 min | **300 / 300** | 6,600 min | 7,021 min | **1.06** |
+| Evening | 35 °C | 127 / 193 min | 300 min | **127 / 193** | 3,190 min | 8,133 min | **2.55** |
 
-| Session | Ambient | Budget each | Fleet total | Verdict |
+**In the morning the roster binds. In the evening spoilage binds.** At 22 °C the milk
+would last five hours and the driver goes home after five; at 35 °C the milk is finished
+in two and the shift never gets a chance to matter.
+
+### What that means in practice
+
+Both sessions come back `COVERAGE_OPTIMISATION`. Neither fits.
+
+| Session | Routes | Points served | Coverage | Thinnest slack |
 |---|---|---|---|---|
-| Morning | 22 °C | 313 min | 6,886 min | Comfortable (ratio 0.71) |
-| Morning (summer) | 27 °C | 222 min | 4,884 min | Tight but feasible (ratio 0.999) |
-| Evening (mild) | 28 °C | 207 min | 4,554 min | Short by ~330 min |
-| Evening (summer) | 35 °C | 127 min | 2,794 min | **Short by ~2,090 min** |
+| Morning, 22 °C | 22 | 868 of 1,250 | 69% | 93 min |
+| Evening, 35 °C | 14 | 241 of 1,250 | 19% | 22 min |
 
-**Conclusion: the morning session fits comfortably with 22 tankers. The hot-weather
-evening session does not fit at all.** Serving every point on a 35 °C evening would
-need roughly 38 tankers.
+**This corrects an earlier claim in this document.** An earlier version of this section
+said the morning "fits comfortably with 22 tankers" at a ratio of 0.71. That was arithmetic
+on hold budget alone, and it was wrong: it ignored the driver roster entirely. Serving every
+point on a 22 °C morning needs about 26 tankers on a 300-minute shift, not 22. The dairy is
+short in the morning too — just for a different reason, and by much less.
 
-This is not a flaw in my model — it is what "milk that sits too long is rejected
-outright" means in practice. The dairy is almost certainly losing evening loads in
-summer and treating it as normal.
+### The lever the morning finding hands you
 
-The system's job is to make that visible and offer levers. The most valuable one costs
+Extending the morning shift from 300 to 600 minutes changes the arithmetic decisively: each
+tanker becomes bounded by its hold budget again, fleet capacity rises from 6,600 to 7,858
+minutes, and the ratio falls from 1.06 to **0.89** — inside the feasibility margin.
+
+The planner delivers it. On a 600-minute shift the same dairy plans as **22 routes covering
+1,216 of 1,250 points — 97%, mode `FULL_SERVICE`, thinnest slack 31 minutes**, against 868
+points on the 300-minute roster. Same fleet, same villages, same weather; one rostering
+change is worth 348 collection points a morning.
+
+**That is a rostering decision, not a capital one.** Every other lever for the morning
+shortfall — more tankers, more insulation, a second chilling centre — costs money. This one
+costs a conversation about shift patterns, and it is the single largest improvement
+available to this dairy.
+
+### The evening is a different problem
+
+At a ratio of 2.55, no rostering change touches it. Serving every point on a 35 °C evening
+would need about 61 tankers against a fleet of 22. This is not a flaw in the model — it is
+what "milk that sits too long is rejected outright" means once you put numbers on it. The
+dairy is almost certainly losing evening loads in summer and treating it as normal.
+
+The system's job is to make that visible and offer levers. The most valuable one still costs
 nothing: shifting the evening departure from 16:30 to 18:30 drops ambient from 35 °C to
-29 °C, raises the budget from 127 to 194 minutes, and takes coverage from ~67% to ~91%.
+29 °C, raises the plain-tanker budget from 127 to 193 minutes, and takes coverage from
+**19% to 37%** — about 18 points, for no money at all.
 
 ---
 

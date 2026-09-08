@@ -20,18 +20,27 @@ import java.util.List;
  * "the insulated tankers go to the longest routes" — which is exactly the decision worth
  * making.
  *
- * <p>Routes left over when the tankers run out are returned unassigned rather than dropped.
- * A village that cannot be run today is a fact the caller has to record, not one the
- * assigner should quietly absorb.
+ * <p>Every pairing is re-checked against the constraints before it is accepted. That is not
+ * belt and braces: the merge loop only ever established that <em>some</em> tanker in the
+ * fleet could run a route, and the one it is finally given may be a different and weaker
+ * one. Assigning without re-checking silently produces routes with negative slack.
+ *
+ * <p>Routes left over — because the tankers ran out, or because no tanker that remained
+ * could run them — are returned unassigned rather than dropped. A village that cannot be run
+ * today is a fact the caller has to record, not one the assigner should quietly absorb.
  */
 public final class TankerAssigner {
 
     private final SpoilageConstraint spoilageConstraint;
     private final SpoilageCalculator spoilage;
+    private final ConstraintChecker checker;
 
-    public TankerAssigner(SpoilageConstraint spoilageConstraint, SpoilageCalculator spoilage) {
+    public TankerAssigner(SpoilageConstraint spoilageConstraint,
+                          SpoilageCalculator spoilage,
+                          ConstraintChecker checker) {
         this.spoilageConstraint = spoilageConstraint;
         this.spoilage = spoilage;
+        this.checker = checker;
     }
 
     /**
@@ -55,27 +64,44 @@ public final class TankerAssigner {
         List<AssignedRoute> assigned = new ArrayList<>();
         List<PartialRoute> unassigned = new ArrayList<>();
 
-        for (int i = 0; i < byRisk.size(); i++) {
-            PartialRoute route = byRisk.get(i);
+        // Walked with two independent cursors. A route that cannot use the tanker it is
+        // offered does not consume it: the biggest budget on the yard is offered to the
+        // riskiest route first, and if even that will not do, no smaller tanker will either,
+        // so the route is dropped and the tanker moves on to the next one down the list.
+        int nextTanker = 0;
 
-            if (i >= byBudget.size()) {
+        for (PartialRoute route : byRisk) {
+            if (nextTanker >= byBudget.size()) {
                 unassigned.add(route);
                 continue;
             }
 
-            Tanker tanker = byBudget.get(i);
+            Tanker tanker = byBudget.get(nextTanker);
+
+            // The merge loop only established that *some* tanker could run this route. The
+            // one it actually gets is decided here, and it may not be that one — there are
+            // six insulated tankers and there can be more than six risky routes. Pairing
+            // without re-checking produces a plan whose slack is negative: a route booked to
+            // arrive after its own milk has spoiled, which is the exact failure this system
+            // exists to prevent.
+            if (!checker.isFeasible(route, tanker, ctx)) {
+                unassigned.add(route);
+                continue;
+            }
+
             double hot = spoilageConstraint.hotMinutes(route, ctx);
             int budget = budgetOf(tanker, ctx);
 
             assigned.add(new AssignedRoute(
                     // R-01 is the riskiest route, so the ops board reads top down.
-                    "R-%02d".formatted(i + 1),
+                    "R-%02d".formatted(assigned.size() + 1),
                     route,
                     tanker,
                     hot,
                     budget,
                     budget - hot,
                     route.totalLitres()));
+            nextTanker++;
         }
 
         return new Assignment(List.copyOf(assigned), List.copyOf(unassigned));

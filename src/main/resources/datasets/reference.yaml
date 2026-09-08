@@ -21,7 +21,7 @@ temperatureProfiles:
   - { month: 11, morning: 18.0, evening: 28.0 }
   - { month: 12, morning: 16.0, evening: 27.0 }
 
-# The nineteen solver parameters. Changing one of these and re-planning is a live
+# The twenty solver parameters. Changing one of these and re-planning is a live
 # demonstration that the model is tunable without a redeploy.
 solverParameters:
   - key: baseHoldMinutesAt30C
@@ -81,3 +81,6 @@ solverParameters:
   - key: trackingLostMinutes
     value: 15
     description: Silence longer than this means tracking is lost, not merely stale
+  - key: ambientShiftCPerHour
+    value: 3.0
+    description: How fast ambient moves per hour away from the session's usual departure

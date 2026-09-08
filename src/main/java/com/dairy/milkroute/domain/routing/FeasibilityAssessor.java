@@ -9,10 +9,18 @@ import java.util.List;
  * Decides, before any routing happens, whether serving everybody is even possible.
  *
  * <p>Two sums and a comparison. What the dairy needs is the on-milk time of every village;
- * what it has is the hold budget of every tanker at today's temperature. If the first
+ * what it has is the working time of every tanker at today's temperature. If the first
  * exceeds the second, no arrangement of routes fixes it, and the honest move is to say so
  * and switch to deciding who gets left out rather than producing a plan that quietly
  * cannot work.
+ *
+ * <p><strong>A tanker is bounded by two things, not one.</strong> Milk spoils, and drivers
+ * go home. Whichever runs out first is the real limit, so each tanker contributes
+ * {@code min(holdBudget, driverShift)} rather than its hold budget alone. Counting only
+ * spoilage reported a comfortable morning at 22 C — a 313 minute budget against a 300 minute
+ * shift — while the roster made full service impossible, and the plan then quietly served
+ * 868 of 1,250 points under a FULL_SERVICE heading. On a cool morning the roster binds
+ * first; on a hot evening spoilage does. The assessment has to see both.
  *
  * <p>Formally this is the Team Orienteering Problem: a fleet, a time budget per vehicle, a
  * prize at each node, and no way to visit them all. Worth naming, because it says the
@@ -47,7 +55,7 @@ public final class FeasibilityAssessor {
 
         double available = 0;
         for (Tanker tanker : ctx.availableTankers()) {
-            available += spoilage.holdBudgetMinutes(ctx.ambientTempC(), tanker.isInsulated());
+            available += usableMinutes(tanker, ctx);
         }
 
         PlanMode mode = required <= available * feasibilityMargin
@@ -63,6 +71,21 @@ public final class FeasibilityAssessor {
                 blocks.size(),
                 ctx.fleetSize(),
                 tankersRequired(required, available, ctx.fleetSize()));
+    }
+
+    /**
+     * What one tanker can actually contribute today.
+     *
+     * <p>The shift is a slight over-estimate on this side of the comparison, because part of
+     * a driver's day is the empty run out to the first village and that carries no milk. It
+     * is the conservative direction to be wrong in — it never claims capacity the dairy does
+     * not have — and the exact figure belongs to the constraint checker, which sees a whole
+     * route rather than a fleet average.
+     */
+    private double usableMinutes(Tanker tanker, PlanningContext ctx) {
+        return Math.min(
+                spoilage.holdBudgetMinutes(ctx.ambientTempC(), tanker.isInsulated()),
+                ctx.driverMaxShiftMin());
     }
 
     /**

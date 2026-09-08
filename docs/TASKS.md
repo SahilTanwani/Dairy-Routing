@@ -72,7 +72,7 @@ and Hibernate validation passes with no schema mismatch.
 - [x] **T2.6** · Seed farmers — `twoFarmerPointRatio` chance of 2; compute
       `service_minutes = 2.0 + 0.35 × count` and morning/evening litres
 - [x] **T2.7** · Seed fleet, drivers, plant — round-robin `capacityMix`, first N insulated
-- [x] **T2.8** · Seed temperature profiles (24 rows) + the 19 solver parameters
+- [x] **T2.8** · Seed temperature profiles (24 rows) + the 20 solver parameters
 - [x] **T2.9** · `SeedRunner` — `ApplicationRunner`, skips if data exists
 - [x] **T2.10** · Reseed endpoint — `POST /admin/reseed?dataset=X`.
       **Load config before truncating. Clear the matrix cache. Guard to dev/sim.**
@@ -100,8 +100,10 @@ ratio < 0.8.
       (35, insulated) → 193; (22, insulated) → 475, just under the ceiling
       (10, false) → 480 ceiling; (55, false) → 60 floor
 
-- [ ] **T3.7** · `AmbientTemperatureProvider` interface + impl reading
-      `temperature_profile`
+- [x] **T3.7** · ~~`AmbientTemperatureProvider` interface + impl~~
+      **Built as `AmbientTemperatureService`** — reads `temperature_profile`, plus a shift
+      model (`ambientShiftCPerHour`) the table cannot supply, since it is month-by-session
+      and the timing advisory turns on the difference between 16:30 and 18:30.
 
 **Done when:** both calculators pass their full test suites. Everything downstream
 depends on these being right.
@@ -130,7 +132,34 @@ depends on these being right.
 **Done when:** `POST /plans` at 22 °C serves all points in under 5 s using fewer than 22
 tankers.
 
----
+**Actual:** 193 ms. Three defects were found by wiring Phase 6 on top of this phase, and
+all three are now fixed:
+
+1. **`FeasibilityAssessor` ignored shift length.** It compared hot minutes against hold
+   budget only, so it reported FULL_SERVICE at 22 °C while the 300-minute driver shift made
+   full service impossible. Each tanker now contributes `min(holdBudget, driverShift)`; at
+   22 °C that is 300 rather than 313, giving a ratio of 1.06 and COVERAGE_OPTIMISATION.
+
+2. **`TankerAssigner` paired routes with tankers that could not run them.** The merge loop
+   validated against the *least capable tanker that passes*; the assigner then paired by hot
+   time against hold budget without re-checking, producing a route with **-44 minutes of
+   slack** — booked to reach the plant after its own milk had spoiled. It now re-checks each
+   pairing with `ConstraintChecker` and leaves the route unassigned instead. A rejected route
+   does not consume the tanker it refused. `TankerAssignerTest`.
+
+3. **The merge loop built more insulated-only routes than there are insulated tankers.**
+   Every merge was individually feasible — some tanker could run it — but six insulated
+   tankers cannot crew a dozen insulated-only routes, so the assigner refused them and
+   coverage collapsed. Before accepting a merge, the loop now sorts the resulting hot times
+   against the fleet's usable budgets and rejects the merge if the demanding routes would
+   outnumber the tankers able to take them. Only the top `fleetSize` demands are checked:
+   requiring the whole set to be crewable would block every merge at the start, when there
+   are 60 routes and 22 tankers. `RoutePlannerFleetFitTest`.
+
+**Where that leaves the plan:** 22 routes and 868 of 1,250 points at 22 °C on the seeded
+300-minute roster, thinnest slack +93. On a 600-minute roster, 22 routes and **1,216 of
+1,250 points**, mode FULL_SERVICE, thinnest slack +31. The morning shortfall is the driver
+roster, not the fleet — see `ASSUMPTIONS.md` section 5.
 
 ## Phase 5 — Coverage mode (~2 h)
 
@@ -171,16 +200,22 @@ persists and publishes a plan.
 
 ## Phase 6 — Plans and the timing advisory (~1.5 h)
 
-- [ ] **T6.1** · `PlanningService` — build context, pick strategy, persist plan + routes
+- [x] **T6.1** · `PlanningService` — build context, pick strategy, persist plan + routes
       + stops
-- [ ] **T6.2** · Publish endpoint — verify `uq_one_published_per_session` rejects a
+- [x] **T6.2** · Publish endpoint — verify `uq_one_published_per_session` rejects a
       second publish
-- [ ] **T6.3** · `PlanController` — POST /plans, GET /plans/{id}, GET feasibility,
+- [x] **T6.3** · `PlanController` — POST /plans, GET /plans/{id}, GET feasibility,
       POST publish, GET published
-- [ ] **T6.4** · **`TimingAdvisory`** ← 20 minutes, best line in the demo
-- [ ] **T6.5** · `AdvisoryController`
+- [x] **T6.4** · **`TimingAdvisory`** ← 20 minutes, best line in the demo
+- [x] **T6.5** · `AdvisoryController`
 
-**Done when:** timing advisory on `heat-crisis` shows 67% → 91% at zero cost.
+**Done when:** timing advisory on `heat-crisis` shows 19% → 37% at zero cost.
+
+**Actual on `baseline` at 35 °C:** 16:30 / 127 min / **19%** → 18:30 / 193 min / **37%**,
+a gain of 18 points at zero cost. Temperatures and budgets are exactly as specified; the
+coverage figures are lower than the 67% → 91% estimate because that assumed spoilage was
+the only binding constraint. The 300-minute driver shift and the 22:00 plant close bite
+too. See `ASSUMPTIONS.md` section 5.
 
 ---
 

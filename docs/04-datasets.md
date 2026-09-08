@@ -344,7 +344,9 @@ defaultAmbientC: 22
 ### `heat-crisis.yaml`
 
 ```yaml
-# Expect: time ratio ~1.51, COVERAGE_OPTIMISATION mode, ~67% coverage
+# Expect: time ratio 2.55, COVERAGE_OPTIMISATION, ~19% coverage (241 of 1,250 points)
+# Measured on baseline geography at EVENING / 35 C, which is what this file produces:
+# same seed, so the villages, points and farmers are identical.
 # IDENTICAL to baseline except the last two lines. Same seed = same geography.
 name: heat-crisis
 seed: 88213                    # ← MUST match baseline
@@ -449,9 +451,9 @@ POST /plans {"session":"MORNING","ambientTempC":22}
 diff datasets/baseline.yaml datasets/heat-crisis.yaml     # two lines
 POST /admin/reseed?dataset=heat-crisis
 POST /plans {"session":"EVENING","ambientTempC":35}
-# → COVERAGE_OPTIMISATION, 67%, 412 unserved
+# → COVERAGE_OPTIMISATION, 19%, 1,009 unserved
 GET /advisory/session-timing
-# → depart 18:30, 91% coverage, costs nothing
+# → depart 18:30, 37% coverage, costs nothing
 
 # 3. Sparse district — a different kind of failure
 POST /admin/reseed?dataset=sparse-district

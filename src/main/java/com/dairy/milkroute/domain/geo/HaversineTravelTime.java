@@ -61,6 +61,7 @@ public final class HaversineTravelTime implements TravelTimeProvider {
     }
 
     /** Straight-line distance inflated by the circuity factor: what a tanker actually drives. */
+    @Override
     public double roadKm(GeoPoint a, GeoPoint b) {
         return a.haversineKm(b) * parameters.circuityFactor();
     }

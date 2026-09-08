@@ -22,6 +22,19 @@ public interface TravelTimeProvider {
     Duration between(GeoPoint a, GeoPoint b, Session session);
 
     /**
+     * Road distance in kilometres — the straight line inflated by however much the roads
+     * wander.
+     *
+     * <p>On the interface because a plan has to record the distance it expects a tanker to
+     * drive, and {@code route.est_distance_km} is NOT NULL. It is also the honest place for
+     * it: a real routing engine returns a distance alongside a duration, and a provider that
+     * could only answer one of the two would be a thinner seam than the real thing.
+     *
+     * <p>No session parameter. Traffic changes how long a road takes, not how long it is.
+     */
+    double roadKm(GeoPoint a, GeoPoint b);
+
+    /**
      * Every pairwise time across a set of points, computed once.
      *
      * <p>The planner asks for the same distances thousands of times while comparing merges,
