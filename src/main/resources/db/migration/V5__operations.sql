@@ -148,7 +148,6 @@ CREATE TABLE tanker_ping (
     trip_id     BIGINT       NOT NULL REFERENCES trip(id),
     lat         NUMERIC(9,6) NOT NULL,
     lng         NUMERIC(9,6) NOT NULL,
-    speed_kmph  NUMERIC(5,1),
     accuracy_m  SMALLINT,
     recorded_at TIMESTAMPTZ  NOT NULL,
     received_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
@@ -168,9 +167,7 @@ CREATE TABLE alert (
     message         TEXT         NOT NULL,
     payload         JSONB,
     raised_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    acknowledged_at TIMESTAMPTZ,
     resolved_at     TIMESTAMPTZ,
-    resolution      VARCHAR(32),
     CONSTRAINT chk_alert_severity CHECK (severity IN ('INFO','WARNING','CRITICAL'))
 );
 

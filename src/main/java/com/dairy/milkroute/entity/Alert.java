@@ -60,15 +60,9 @@ public class Alert {
     @Column(name = "raised_at", nullable = false)
     private Instant raisedAt;
 
-    @Column(name = "acknowledged_at")
-    private Instant acknowledgedAt;
-
     /** While this is null the alert is open, and the unique index applies to it. */
     @Column(name = "resolved_at")
     private Instant resolvedAt;
-
-    @Column(name = "resolution", length = 32)
-    private String resolution;
 
     public Long getId() {
         return id;
@@ -134,27 +128,11 @@ public class Alert {
         this.raisedAt = raisedAt;
     }
 
-    public Instant getAcknowledgedAt() {
-        return acknowledgedAt;
-    }
-
-    public void setAcknowledgedAt(Instant acknowledgedAt) {
-        this.acknowledgedAt = acknowledgedAt;
-    }
-
     public Instant getResolvedAt() {
         return resolvedAt;
     }
 
     public void setResolvedAt(Instant resolvedAt) {
         this.resolvedAt = resolvedAt;
-    }
-
-    public String getResolution() {
-        return resolution;
-    }
-
-    public void setResolution(String resolution) {
-        this.resolution = resolution;
     }
 }

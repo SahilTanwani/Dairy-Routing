@@ -37,9 +37,6 @@ public class TankerPing {
     @Column(name = "lng", nullable = false, precision = 9, scale = 6)
     private BigDecimal lng;
 
-    @Column(name = "speed_kmph", precision = 5, scale = 1)
-    private BigDecimal speedKmph;
-
     @Column(name = "accuracy_m")
     private Short accuracyM;
 
@@ -79,14 +76,6 @@ public class TankerPing {
 
     public void setLng(BigDecimal lng) {
         this.lng = lng;
-    }
-
-    public BigDecimal getSpeedKmph() {
-        return speedKmph;
-    }
-
-    public void setSpeedKmph(BigDecimal speedKmph) {
-        this.speedKmph = speedKmph;
     }
 
     public Short getAccuracyM() {
