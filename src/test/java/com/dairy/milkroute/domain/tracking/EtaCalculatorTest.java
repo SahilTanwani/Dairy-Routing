@@ -44,7 +44,9 @@ class EtaCalculatorTest {
     private final TravelTimeProvider travel = new HaversineTravelTime(
             new TravelParameters(1.35, 15.0, 26.0, 34.0, 1.15, 0.90));
     private final PositionResolver positions = new PositionResolver();
-    private final EtaCalculator calculator = new EtaCalculator(travel, positions);
+    /** The seeded values of pingFreshMinutes and trackingLostMinutes. */
+    private final EtaCalculator calculator = new EtaCalculator(
+            travel, positions, Duration.ofMinutes(5), Duration.ofMinutes(15));
 
     @Nested
     @DisplayName("the happy path")

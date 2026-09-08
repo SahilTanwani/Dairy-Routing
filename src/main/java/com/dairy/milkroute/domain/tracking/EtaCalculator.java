@@ -49,16 +49,32 @@ public final class EtaCalculator {
     private static final double MIN_DELAY_FACTOR = 0.7;
     private static final double MAX_DELAY_FACTOR = 2.0;
 
-    /** Confidence bands, by how stale the last position is. */
-    private static final Duration FRESH_PING = Duration.ofMinutes(5);
-    private static final Duration STALE_PING = Duration.ofMinutes(15);
-
     private final TravelTimeProvider travel;
     private final PositionResolver positions;
 
-    public EtaCalculator(TravelTimeProvider travel, PositionResolver positions) {
+    /**
+     * Confidence bands, by how stale the last position is. Both are passed in rather than
+     * written here: {@code stalePing} is the same judgement as {@code trackingLostMinutes},
+     * which {@code SpoilageMonitorService} already reads from {@code solver_parameter}, and
+     * two copies of one threshold is one copy too many — retuning it would have moved the
+     * monitor's idea of a lost tanker without moving the ETA's.
+     */
+    private final Duration freshPing;
+    private final Duration stalePing;
+
+    public EtaCalculator(TravelTimeProvider travel,
+                         PositionResolver positions,
+                         Duration freshPing,
+                         Duration stalePing) {
+        if (freshPing.compareTo(stalePing) > 0) {
+            throw new IllegalArgumentException(
+                    "freshPing (%s) cannot be longer than stalePing (%s)"
+                            .formatted(freshPing, stalePing));
+        }
         this.travel = travel;
         this.positions = positions;
+        this.freshPing = freshPing;
+        this.stalePing = stalePing;
     }
 
     /** When this trip reaches the plant, and how much to trust the answer. */
@@ -170,10 +186,10 @@ public final class EtaCalculator {
         }
 
         Duration age = Duration.between(lastPingAt, now);
-        if (age.compareTo(STALE_PING) > 0) {
+        if (age.compareTo(stalePing) > 0) {
             return EtaConfidence.LOST;
         }
-        if (age.compareTo(FRESH_PING) > 0) {
+        if (age.compareTo(freshPing) > 0) {
             return EtaConfidence.LOW;
         }
         return stopsCompleted >= MINIMUM_STOPS_FOR_A_TREND

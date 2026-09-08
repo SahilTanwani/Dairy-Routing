@@ -1,6 +1,7 @@
 package com.dairy.milkroute.service;
 
 import com.dairy.milkroute.config.ClockProvider;
+import com.dairy.milkroute.config.SolverParameters;
 import com.dairy.milkroute.config.TravelTimeFactory;
 import com.dairy.milkroute.domain.geo.GeoPoint;
 import com.dairy.milkroute.domain.tracking.EtaCalculator;
@@ -9,6 +10,7 @@ import com.dairy.milkroute.domain.tracking.PositionResolver;
 import com.dairy.milkroute.entity.Trip;
 import com.dairy.milkroute.entity.TripStop;
 import com.dairy.milkroute.repository.TripStopRepository;
+import java.time.Duration;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,14 +27,17 @@ public class TripTrackingService {
 
     private final TripStopRepository tripStopRepo;
     private final TravelTimeFactory travelTimeFactory;
+    private final SolverParameters parameters;
     private final ClockProvider clock;
     private final PositionResolver positions = new PositionResolver();
 
     public TripTrackingService(TripStopRepository tripStopRepo,
                                TravelTimeFactory travelTimeFactory,
+                               SolverParameters parameters,
                                ClockProvider clock) {
         this.tripStopRepo = tripStopRepo;
         this.travelTimeFactory = travelTimeFactory;
+        this.parameters = parameters;
         this.clock = clock;
     }
 
@@ -63,8 +68,17 @@ public class TripTrackingService {
         return estimate;
     }
 
+    /**
+     * Built per call, like the travel model, so that retuning a parameter and immediately
+     * asking for an ETA uses the new value rather than one captured at startup.
+     */
     private EtaCalculator calculator() {
-        return new EtaCalculator(travelTimeFactory.create(), positions);
+        SolverParameters.Snapshot snapshot = parameters.snapshot();
+        return new EtaCalculator(
+                travelTimeFactory.create(),
+                positions,
+                Duration.ofMinutes(snapshot.getInt("pingFreshMinutes")),
+                Duration.ofMinutes(snapshot.getInt("trackingLostMinutes")));
     }
 
     private List<TripStop> stopsOf(Trip trip) {

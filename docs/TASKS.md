@@ -321,12 +321,26 @@ one CRITICAL alert with zero rejected litres.
 
 ## Phase 10 — Ship it (~2 h)
 
-- [ ] **T10.1** · `demo.sh` — the three-dataset sequence with curl and commentary
-- [ ] **T10.2** · **Magic number sweep** — grep for hardcoded 22, 60, 1400, 1250, 180,
+- [x] **T10.1** · `demo.sh` — the three-dataset sequence with curl and commentary
+- [x] **T10.2** · **Magic number sweep** — grep for hardcoded 22, 60, 1400, 1250, 180,
       1.35. Everything from config or `solver_parameter`.
+
+      **Result:** no count and no tuning constant is hardcoded. The sweep found one real
+      violation and fixed it: `EtaCalculator` held its own copy of the 15-minute
+      tracking-lost threshold that `SpoilageMonitorService` already read from
+      `solver_parameter`, so retuning the parameter would have moved the monitor's idea of a
+      lost tanker without moving the ETA's. Both confidence bands now come from the table —
+      `trackingLostMinutes`, plus a new `pingFreshMinutes` — which takes the parameter set
+      from twenty rows to twenty-one. Deliberate exceptions, all model definitions rather
+      than dairy policy: the Q10 reference temperature and its 10 °C interval, the 2 km and
+      10 km speed-band boundaries named by their own parameter keys, the ETA delay-factor
+      clamps, and the 2-opt iteration caps. Two seeder constants (`2.0 + 0.35 × farmers`
+      service time, the 60/40 morning split) stay in `SeedService`: they shape generated
+      data rather than tune the solver, and they move to `DatasetConfig` the day a dataset
+      needs to vary one.
 - [ ] **T10.3** · **Clean-machine check #2** — `docker system prune -a`, fresh clone,
       full run, `./demo.sh`
-- [ ] **T10.4** · `README.md`
+- [x] **T10.4** · `README.md`
 
       Order: what it is · how to run · THE FEASIBILITY FINDING (lead with it) ·
       assumptions · domain model · spoilage model · algorithm with the farthest-first

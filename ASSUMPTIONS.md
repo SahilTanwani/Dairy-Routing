@@ -399,7 +399,7 @@ transactions and scheduling only.
 
 | Not built | Reason |
 |---|---|
-| Real authentication | Role-header stub plus an interceptor. The intended design (driver JWT with device binding, farmer access via IVR/OTP only, ops RBAC with audit) is documented. A half-built Spring Security config is worse than an honest placeholder. |
+| Real authentication | Nothing ships: no interceptor, no role header. The intended design — driver JWT with device binding, farmer access via IVR/OTP only, ops RBAC with audit — is written down as a permission matrix in the README instead, because a half-built Spring Security config is worse than an honest placeholder. The one access rule that does ship is the profile gate on reseeding, which truncates the database and is refused outside `dev` and `sim`. |
 | Real map / traffic API | Requires an account key, which breaks the clean-machine requirement. `TravelTimeProvider` is an interface with an OSRM implementation to prove the seam is real. |
 | SMS / IVR delivery | A delivery-channel concern with no bearing on routing or tracking correctness. Notifications are logged instead. |
 | Payments, fat/SNF pricing | A separate bounded context. |

@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 /**
  * Typed access to the {@code solver_parameter} table.
  *
- * <p>Nineteen rows, read as a set rather than one key at a time: a lookup per parameter
+ * <p>Twenty-one rows, read as a set rather than one key at a time: a lookup per parameter
  * would put a query inside the solver's inner loop. Callers take a {@link Snapshot} at the
  * start of a run and use it throughout, so every decision in that run is made against one
  * consistent set of numbers even if somebody retunes a parameter halfway through.
