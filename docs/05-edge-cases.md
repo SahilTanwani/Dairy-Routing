@@ -124,10 +124,9 @@ from six fields.
 | S2 | 50 points added at once | ~2 s matrix rebuild. Report suggests regenerating the plan. |
 | S3 | Tanker retired mid-session | Today's trip completes normally; excluded from tomorrow's plan |
 | S4 | Farmer moves to a different point | Row update. Volume estimates recompute from active farmers. |
-| S5 | Points merged via the advisory | Old point `active = false`, `merged_into_id` set, farmers repointed. **Historical rows intact.** |
-| S6 | Matrix cache stale after a point moves | Content hash changes → automatic rebuild. No manual invalidation. |
-| S7 | Dairy triples in size | Works. Village decomposition means complexity grows with village count, not point count. |
-| S8 | Ping table growth | ~8,000 rows/session. Monthly partitioning is the 100× answer, not needed now. |
+| S5 | Matrix cache stale after a point moves | Content hash changes → automatic rebuild. No manual invalidation. |
+| S6 | Dairy triples in size | Works. Village decomposition means complexity grows with village count, not point count. |
+| S7 | Ping table growth | ~8,000 rows/session. Monthly partitioning is the 100× answer, not needed now. |
 
 ---
 

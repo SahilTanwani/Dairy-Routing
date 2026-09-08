@@ -224,7 +224,7 @@ public SeedResult reseed(@RequestParam String dataset) {
 TRUNCATE village, collection_point, farmer, tanker, driver, plant,
          route_plan, route, route_stop, trip, trip_stop, collection,
          driver_event, tanker_ping, alert, intake_record,
-         point_coverage_state, plan_exclusion, merge_proposal,
+         point_coverage_state, plan_exclusion,
          temperature_profile, solver_parameter
 RESTART IDENTITY CASCADE;
 ```

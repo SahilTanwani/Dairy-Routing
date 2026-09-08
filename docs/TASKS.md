@@ -45,7 +45,9 @@ Work these **in order**, one at a time. Mark `[x]` when done and commit.
 - [x] **T1.4** · `V5__operations.sql` — trip, trip_stop, collection, driver_event,
       tanker_ping, alert, intake_record.
       **Include `client_event_id UUID UNIQUE` and `uq_alert_open`.**
-- [x] **T1.5** · `V6__advisory.sql` — merge_proposal, merge_proposal_point
+- [x] **T1.5** · ~~`V6__advisory.sql` — merge_proposal, merge_proposal_point~~
+      **Withdrawn.** Built, then removed with the consolidation advisory: nothing
+      in scope writes those two tables. The schema is V1-V5.
 - [x] **T1.6** · JPA entities, one per table. `@Version` on Trip.
 - [x] **T1.7** · Enums — Session, TripStatus, TripStopStatus, EventType, RiskLevel,
       SkipReason, PlanStatus, PlanMode, EtaConfidence, AlertType, AlertSeverity,

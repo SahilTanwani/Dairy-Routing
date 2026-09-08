@@ -395,45 +395,6 @@ return new TimingAdvisory(
 
 Expected on `heat-crisis`: 16:30 @ 35 °C, 127 min, 67% → 18:30 @ 29 °C, 194 min, 91%.
 
-### ConsolidationAnalyser
-
-```java
-for (Village v : villages) {                        // never across villages
-    List<Cluster> clusters = dbscan(pointsIn(v),
-                                    params.maxWalkMetres(),   // 500
-                                    2);
-    for (Cluster c : clusters) {
-        CollectionPoint hub = chooseHub(c);
-        double before = c.points().stream().mapToDouble(this::serviceMinutes).sum()
-                      + intraClusterTravelMinutes(c);
-        double after  = 2.0 + 0.35 * farmerCountIn(c);
-        proposals.add(new MergeProposal(v, c.points(), hub,
-                                        before - after, farmerCountIn(c),
-                                        maxWalkFrom(hub, c)));
-    }
-}
-```
-
-**Hub selection minimises the MAXIMUM walk, not the average:**
-
-```java
-return cluster.points().stream()
-    .min(comparingDouble(candidate -> cluster.points().stream()
-        .mapToDouble(p -> distMetres(p, candidate))
-        .max().orElse(0)))
-    .orElseThrow();
-```
-
-The farmer with the longest walk is the one who will refuse. Optimising the worst case
-is what makes a proposal acceptable.
-
-**Never propose cross-village merges.** Two villages can be 400 m apart and have a
-century of reasons not to share a collection point.
-
-**Simulate before committing:** apply merges to an in-memory copy of the point set,
-re-plan, return before/after. Every proposal is flagged `requiresFieldValidation` —
-walking distances are straight-line, and farmer consent is needed.
-
 ### ChillingUnitAdvisory (cuttable)
 
 For villages flagged `UNREACHABLE_WITHIN_HOLD`, recommend a local cooler with farmer

@@ -80,7 +80,7 @@ com.dairy.milkroute
 │   │                CoveragePlanner, PointScorer, SequenceOptimiser
 │   ├── tracking/    PositionResolver, EtaCalculator
 │   ├── trip/        TripStateMachine, EventReplayer
-│   └── advisory/    ConsolidationAnalyser, TimingAdvisory
+│   └── advisory/    TimingAdvisory
 ├── dto/          request/ and response/
 ├── entity/       JPA entities
 ├── enums/
