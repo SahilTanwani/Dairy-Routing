@@ -228,22 +228,33 @@ reviewer notices.
 
 ## Phase 7 — Trips and events (~3 h)
 
-- [ ] **T7.1** · Trip creation — read published plan, **snapshot route_stops into
+- [x] **T7.1** · Trip creation — read published plan, **snapshot route_stops into
       trip_stops**, check tanker/driver availability, substitute or BLOCK
-- [ ] **T7.2** · `TripStateMachine` — allowed-transitions map
-- [ ] **T7.3** · `TripStateMachine` tests — every valid transition, sample invalid ones
-- [ ] **T7.4** · Event DTOs — batch request with `clientEventId`, type, `clientTs`,
+- [x] **T7.2** · `TripStateMachine` — allowed-transitions map
+- [x] **T7.3** · `TripStateMachine` tests — every valid transition, sample invalid ones
+- [x] **T7.4** · Event DTOs — batch request with `clientEventId`, type, `clientTs`,
       payload
-- [ ] **T7.5** · **`EventIngestionService`** ← the idempotency piece.
+- [x] **T7.5** · **`EventIngestionService`** ← the idempotency piece.
       `@Transactional`, sort by `client_ts`, catch `DataIntegrityViolationException`
-- [ ] **T7.6** · `EventReplayer` — apply each event type; synthesise a missing
+- [x] **T7.6** · `EventReplayer` — apply each event type; synthesise a missing
       `ARRIVED_AT_STOP` before a `COLLECTED`
-- [ ] **T7.7** · **Idempotency test** — 30 events, resend 5, assert 25 applied /
+- [x] **T7.7** · **Idempotency test** — 30 events, resend 5, assert 25 applied /
       5 duplicates / no double collections
-- [ ] **T7.8** · Collection recording — one row per farmer, validated 0–500
-- [ ] **T7.9** · `DriverController` — today's trip, events, pings, own clock
+- [x] **T7.8** · Collection recording — one row per farmer, validated 0–500
+- [x] **T7.9** · `DriverController` — today's trip, events, pings, own clock
 
 **Done when:** you can curl a sequence of events and watch a trip progress.
+
+**Done.** Five events against trip 1 move it SCHEDULED to IN_PROGRESS, stop 1 to COLLECTED
+with one milk row, stop 2 to ARRIVED, currentSeq 2, and the spoilage deadline set from the
+first collection. Resending the same batch: 0 applied, 5 duplicates, still one milk row.
+
+**Deviation worth knowing.** T7.5 specifies catching `DataIntegrityViolationException` to
+count a duplicate. That does not work: Postgres aborts a transaction on a failed statement,
+so the events behind the duplicate would be lost with it. Duplicates are absorbed by
+`INSERT ... ON CONFLICT (client_event_id) DO NOTHING` instead — the same unique index is
+still the arbiter, the transaction stays usable, and it is correct when two copies of a
+batch arrive at once.
 
 ---
 
