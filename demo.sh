@@ -100,7 +100,7 @@ note "against $BASE"
 printf '\n'
 note "waiting for the app to answer /health ..."
 for attempt in $(seq 1 60); do
-    if curl -sS -m 5 "$BASE/health" >/dev/null 2>&1; then break; fi
+    if curl -sSf -m 5 "$BASE/health" >/dev/null 2>&1; then break; fi
     [ "$attempt" = "60" ] && { echo "app never came up — is docker compose running?"; exit 1; }
     sleep 2
 done

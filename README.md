@@ -10,6 +10,15 @@ Java 21 · Spring Boot 4.0.8 · PostgreSQL 16 · Flyway · Docker Compose.
 
 ---
 
+## Prerequisites
+
+- **Docker Desktop** — Java 21, Maven and PostgreSQL 16 all run inside the
+  containers, so nothing else needs installing to run it
+- **Git**, or download the ZIP from GitHub
+- **Ports 8080 and 5432 free**
+
+`./mvnw test` additionally needs JDK 21 on the host.
+
 # 1. Run it
 
 ```bash
@@ -45,6 +54,7 @@ docker compose up -d db                                  # both of these need a 
 # Tests run: 187, Failures: 0, Errors: 0, Skipped: 0     Total time: 39.7 s
 
 SPRING_PROFILES_ACTIVE=dev ./mvnw spring-boot:run        # app on the host, ready in ~9 s
+# PowerShell:  $env:SPRING_PROFILES_ACTIVE="dev"; .\mvnw.cmd spring-boot:run
 ```
 
 **Three test classes — 14 tests in all — boot a Spring context and expect PostgreSQL on
@@ -80,6 +90,10 @@ curl 'localhost:8080/api/v1/admin/dataset-check?dataset=baseline'
 A ratio above 1.0 means the fleet cannot serve everyone; above the feasibility margin of 0.92
 the planner switches to coverage mode and writes down who it left out and why.
 
+`./demo.sh` runs all of this — three reseeds, four plans, the advisory, a publish
+and a rejected second publish — with commentary between each step.
+`PAUSE=1 ./demo.sh` stops between acts for a live walkthrough.
+
 **Why baseline and heat-crisis are a fair comparison.** They share a random seed (88213), so
 they build the identical dairy — same villages, coordinates, 1,250 collection points, 1,408
 farmers and 22 tankers. Ignoring comments, three lines differ:
@@ -112,6 +126,7 @@ controllers, services and duplicate handling rather than a parallel test path.
 
 ```bash
 SPRING_PROFILES_ACTIVE=sim docker compose up -d app     # sim profile replaces the real clock
+# PowerShell:  $env:SPRING_PROFILES_ACTIVE="sim"; docker compose up -d app
 curl localhost:8080/api/v1/sim/status
 # {"state":"IDLE","simulatedTime":"2026-10-15T04:30:00Z","step":0,...}
 
@@ -137,6 +152,7 @@ per driver, and SQL proving the duplicates changed nothing:
 
 ```bash
 docker logs milkroute-app | grep reconnected
+# PowerShell:  docker logs milkroute-app | Select-String reconnected
 # Driver D-0001 reconnected on trip 1: sent 15 events (12 buffered + 3 already
 # acknowledged) -> 12 applied, 3 duplicates
 
