@@ -112,7 +112,7 @@ For each task:
 3. Implement.
 4. Run the build and tests.
 5. Explain what you wrote in plain language.
-6. Mark the task complete in `docs/TASKS.md` and commit with a descriptive message.
+6. Mark the task complete in `docs/TASKS.md` and report what changed.
 
 Do not implement tasks beyond the one you were asked for. Ask before deviating from
 the spec.
