@@ -17,7 +17,10 @@ Java 21 · Spring Boot 4.0.8 · PostgreSQL 16 · Flyway · Docker Compose.
 - **Git**, or download the ZIP from GitHub
 - **Ports 8080 and 5432 free**
 
-`./mvnw test` additionally needs JDK 21 on the host.
+`./mvnw test` additionally needs JDK 21 on the host. On Windows, run `demo.sh` from **Git
+Bash** — PowerShell's `bash` resolves to WSL, which may not be installed.
+
+---
 
 # 1. Run it
 
@@ -32,116 +35,86 @@ docker compose up
 |---|---|---|
 | `docker compose up` | ~2 min while Maven pulls every dependency into the image, plus a minute or two the very first time for the base images | ~15 s |
 | App becomes usable | ~18 s after the container starts | same |
-| `./demo.sh` | 22 s — four acts: three dairies, four plans, one advisory | 22 s |
+| `./demo.sh` | 22 s | 22 s |
 
-**What "ready" looks like.** `Started MilkrouteApplication` is *not* it — the app listens a
-few seconds before it has loaded the dairy, and until it has, health answers **503 with
-`"STARTING"`** on purpose. Wait for the seeder line, or poll health:
+**What "ready" looks like.** `Started MilkrouteApplication` is *not* it — the app listens a few
+seconds before it has loaded the dairy, and until it has, health answers **503 with
+`"STARTING"`** on purpose. Wait for the seeder line:
 
 ```
 Seeded 'baseline' (seed 88213): 60 villages, 1250 points, 1408 farmers, 22 tankers, ...
-$ curl localhost:8080/api/v1/health   →   {"status":"UP","service":"milkroute",...}
 ```
 
-`demo.sh` waits for the 200 itself. It needs `bash` and `curl` only, uses `jq` if present, and
-takes `PAUSE=1` (stop between acts), `VERBOSE=1` (full bodies) and `BASE_URL=...`.
+`demo.sh` waits for the 200 itself. It needs `bash` and `curl` only, and takes `PAUSE=1` to
+stop between sections.
 
-## Tests, development mode, and the docs
+## What demo.sh shows
+
+Four acts, about twenty seconds. Each loads a different dairy and asks the same question:
+**can 22 tankers collect everyone's milk before it goes off?**
+
+| Act | Dairy | Answer |
+|---|---|---|
+| 1 | A normal morning, 22 °C | Not quite. 868 of 1,250 collection points. **The driver's shift runs out before the milk does.** |
+| 2 | The same dairy, 35 °C evening | Badly short. 241 of 1,250. **Now the milk runs out first.** |
+| 3 | — | Leaving two hours later would raise that from 19% to 37%, and costs nothing. |
+| 4 | A thinly spread district | Ten villages no tanker can reach and get back from in time. Not a shortage — physics. |
+
+Act 2 uses the same random seed as Act 1, so it is the same villages, the same farmers and the
+same 22 tankers. **Only the weather is different.** That is what makes the comparison an
+experiment rather than an anecdote.
+
+## Tests and development mode
 
 ```bash
 docker compose up -d db                                  # both of these need a database
 ./mvnw test
-# Tests run: 187, Failures: 0, Errors: 0, Skipped: 0     Total time: under a minute
+# Tests run: 187, Failures: 0, Errors: 0, Skipped: 0
 
 SPRING_PROFILES_ACTIVE=dev ./mvnw spring-boot:run        # app on the host, ready in ~9 s
 # PowerShell:  $env:SPRING_PROFILES_ACTIVE="dev"; .\mvnw.cmd spring-boot:run
 ```
 
-**Three test classes — 14 tests in all — boot a Spring context and expect PostgreSQL on
-localhost:5432.** Without it those three fail and the other 173 still pass. Everything in
-`domain/` is plain Java and needs no Spring context, which is why the suite finishes in well
-under a minute.
+Three test classes — 14 tests — boot a Spring context and need PostgreSQL on localhost:5432.
+Without it those fail and the other 173 still pass. Everything in `domain/` is plain Java and
+needs no Spring context, which is why the whole suite finishes in under a minute.
 
-The `dev` profile is what makes `POST /admin/reseed` legal: that endpoint empties the
-database, so it is refused unless the profile is `dev` or `sim`. Interactive docs at
-<http://localhost:8080/swagger-ui.html>, OpenAPI at `/v3/api-docs`.
+Interactive API docs at <http://localhost:8080/swagger-ui.html>.
 
 ---
 
-## Trying a different dairy
+# 2. Watching a whole session run
 
-Three dairies, each a YAML file in `src/main/resources/datasets/`. Switching is one HTTP call
-— no restart, no rebuild — and `dataset-check` reports the arithmetic before any planning
-happens: minutes of work needed against minutes the fleet has.
+`demo.sh` shows the planner. The other half is a collection session actually happening —
+twenty-two tankers on the road, farmers waiting, one of them asking where the tanker is.
 
-| Dataset | Villages · points · farmers · tankers | Session | Needs / has (min) | Ratio | What it shows |
-|---|---|---|---|---|---|
-| `baseline` | 60 · 1,250 · 1,408 · 22 | Morning, 22 °C | 7,021 / 6,600 | **1.06** | Just short. The driver shift runs out first. |
-| `heat-crisis` | 60 · 1,250 · 1,408 · 22 | Evening, 35 °C | 8,133 / 3,190 | **2.55** | Badly short. The milk runs out first. |
-| `sparse-district` | 45 · 574 · 611 · 16 | Evening, 30 °C | 9,425 / 3,252 | **2.90** | 10 villages no tanker can reach and return from in time. |
-
-A ratio above 1.0 means the fleet cannot serve everyone; above the feasibility margin of 0.92
-the planner switches to coverage mode and writes down who it left out and why.
-
-**Why baseline and heat-crisis are a fair comparison.** They share a random seed (88213), so
-they build the identical dairy — same villages, coordinates, 1,250 collection points, 1,408
-farmers and 22 tankers. Ignoring comments, three lines differ:
-
-```bash
-cd src/main/resources/datasets
-diff <(grep -v '^ *#' baseline.yaml) <(grep -v '^ *#' heat-crisis.yaml)
-# < name: baseline             >  name: heat-crisis
-# < defaultSession: MORNING    >  defaultSession: EVENING
-# < defaultAmbientC: 22        >  defaultAmbientC: 35
-```
-
-The only real difference is the weather, which makes the morning-versus-evening result an
-experiment rather than an anecdote.
-
-`./demo.sh` walks all three — three reseeds, four plans, the advisory, a publish and a
-rejected second publish — with commentary between each step. `PAUSE=1 ./demo.sh` stops
-between acts for a live walkthrough. The individual commands, if you want to go off-script,
-are in **[docs/SIMULATION.md](docs/SIMULATION.md)**.
-
-> **Reseeding empties the database.** Every plan, trip and collection goes. Reseed *before*
-> you start a simulation run, never during one.
-
----
-
-## Watching a session run
-
-A collection session takes three hours and happens twice a day, so it cannot be tested by
-waiting for one. Nothing here calls the system clock: every class asks a `ClockProvider` what
-time it is, and under the `sim` profile that clock is driven by the test. A whole session
-replays in about four minutes.
-
-The simulated drivers are not a shortcut. Twenty-two of them post to the same HTTP endpoints a
-real driver's phone would use and never touch the database, so a simulated collection goes
-through the real request validation, the real ingestion transaction, the real duplicate index
-and the real trip state machine.
+A real session takes three hours and happens twice a day, so it cannot be tested by waiting for
+one. Instead, nothing in this system calls the system clock: every class asks a `ClockProvider`
+what time it is, and under the `sim` profile that clock is driven by the test. **A whole
+morning replays in about four minutes.**
 
 ```bash
 SPRING_PROFILES_ACTIVE=sim docker compose up
 # PowerShell:  $env:SPRING_PROFILES_ACTIVE="sim"; docker compose up
 
 curl -X POST 'localhost:8080/api/v1/sim/run?scenario=happy-morning'
-curl localhost:8080/api/v1/sim/status
-# {"state":"RUNNING","simulatedTime":"2026-10-15T06:03:30Z","step":157,"drivers":22,...}
 ```
 
-**[docs/SIMULATION.md](docs/SIMULATION.md)** is the full walkthrough: asking a farmer when his
-milk will be collected and watching the answer change thirty seconds later, reading a driver's
-stop list mid-round, and the moment all twenty-two phones reconnect after half an hour with no
-signal — twelve events applied and three duplicates dropped, per driver, by one unique index.
+Twenty-two simulated drivers post to the same HTTP endpoints a real driver's phone would use
+and never touch the database, so this exercises the real controllers and the real duplicate
+handling rather than a test shortcut.
 
-**Measured run:** `happy-morning` replays a full morning in about 950 steps and three to four
-minutes of real time — the exact count depends on when you jump forward. All 22 trips finish
-`COMPLETED`, with 2,670 events recorded under 2,670 distinct ids: every resent duplicate
-rejected.
+**→ [docs/SIMULATION.md](docs/SIMULATION.md)** is the full walkthrough: how to ask a farmer
+when his milk will be collected and watch the answer change thirty seconds later, how to read a
+driver's stop list mid-round, and what happens when all twenty-two phones lose signal for half
+an hour and then reconnect at once.
+
+It also has the commands for loading each of the three dairies by hand, if you would rather go
+step by step than let `demo.sh` do it.
 
 ---
 
-# 2. What I found
+# 3. What I found
 
 **Hold budget** is how many minutes the milk in a tanker stays good — hotter air, fewer
 minutes. **Driver shift** is the most hours a driver may work in one session. A tanker is
@@ -157,8 +130,8 @@ limited by whichever runs out first, and which one that is depends entirely on t
 | Fleet supplies | 6,600 tanker-minutes | 3,190 tanker-minutes |
 | Plan reaches | **868 of 1,250 points**, 12,898 L | **241 of 1,250 points**, 2,419 L |
 
-**Morning: the limit is how long a driver can work, not how fast the milk spoils.** The gap
-is only 6%, and closing it costs nothing to buy. Raise the shift to 600 minutes and the milk
+**Morning: the limit is how long a driver can work, not how fast the milk spoils.** The gap is
+only 6%, and closing it costs nothing to buy. Raise the shift to 600 minutes and the milk
 becomes the limit again instead of the driver — same 22 tankers, same villages, same weather:
 
 | Shift | Mode | Points served |
@@ -166,17 +139,14 @@ becomes the limit again instead of the driver — same 22 tankers, same villages
 | 300 minutes | Coverage optimisation | 868 |
 | 600 minutes | **Full service** | **1,216** |
 
-**348 more collection points every single morning, from a rostering conversation.** Every
-other fix for the morning — more tankers, more insulation, a second chilling plant — costs money.
+**348 more collection points every single morning, from a conversation about shift lengths.**
+Every other fix for the morning — more tankers, more insulation, a second chilling plant —
+costs money.
 
-**Evening: the limit is spoilage.** The dairy needs more than twice what the fleet can give.
-No rostering change touches a shortfall that size; serving everyone at 35 °C would take about
-61 tankers. But the air cools roughly 3 °C an hour after the afternoon peak, so leaving at
+**Evening: the limit is spoilage.** The dairy needs more than twice what the fleet can give. No
+change to shift lengths touches a shortfall that size; serving everyone at 35 °C would take
+about 61 tankers. But the air cools roughly 3 °C an hour after the afternoon peak, so leaving at
 **18:30 instead of 16:30** means collecting at 29 °C instead of 35 °C:
-
-```bash
-curl 'localhost:8080/api/v1/advisory/session-timing?session=EVENING&ambientTempC=35&shiftHours=2'
-```
 
 | | Leave 16:30 | Leave 18:30 |
 |---|---|---|
@@ -190,203 +160,205 @@ reporting both sides, so the claim can be checked rather than believed.
 
 ---
 
-# 3. How it works
+# 4. How it works
 
 ```
 dataset YAML ─► seed the dairy ─► today's temperature ─► hold budget per tanker
      │
      ├─► solve each village internally      →  60 blocks, not 1,250 loose stops
      ├─► enough fleet-time?                 →  full service | coverage mode
-     ├─► build routes: merge village blocks, each merge checked against 4 constraints
+     ├─► build routes: merge village blocks, each merge checked against 4 rules
      ├─► re-order each route for least time carrying milk, farthest village first
      ├─► assign tankers (riskiest route gets the longest budget) ─► publish plan
-     └─► create trips (a frozen copy) ─► driver events ─► ETAs, alerts
+     └─► create trips (a frozen copy) ─► driver events ─► arrival times, alerts
 ```
+
+Seven ideas hold the whole thing up. Each is a paragraph here and a full section in
+**[docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md)**, which walks through every feature in plain
+language — the maths, the files that do it, and the database tables it touches.
 
 ## The drive out is free
 
-The tanker is empty on the way out, so nothing is spoiling yet: the clock starts at the
-**first collection**, not at departure. The goal is therefore "least time carrying milk", not
-"least distance" — and the two disagree. Three villages 8, 25 and 40 km from the plant:
+The tanker is empty on the way out, so nothing is spoiling yet — the clock starts at the
+**first collection**, not at departure. That means the goal is "least time carrying milk", not
+"least distance", and the two disagree. Three villages 8, 25 and 40 km from the plant:
 
-| Order | Legs carrying milk | Straight-line km | Road km (×1.35) | At 39 km/h |
-|---|---|---|---|---|
-| Nearest first: 8 → 25 → 40 → plant | 17 + 15 + 40 | 72 | 97 | **149 min** |
-| Farthest first: 40 → 25 → 8 → plant | 15 + 17 + 8 | 40 | 54 | **83 min** |
+| Order | Straight-line km | Time carrying milk |
+|---|---|---|
+| Nearest first: 8 → 25 → 40 → plant | 80 | **149 min** |
+| Farthest first: 40 → 25 → 8 → plant | 80 | **83 min** |
 
-Both drive exactly 80 km, so going out empty to the far end and collecting on the way home
-removes **66 minutes of spoilage risk for no extra fuel**. A solver minimising distance cannot
-see this: on distance the two routes are the same route.
+Both drive exactly the same distance. Going out empty to the far end and collecting on the way
+home removes **66 minutes of spoilage risk for no extra fuel**. A planner minimising distance
+could not see this: on distance the two are the same route.
+
+→ [Planning the routes](docs/HOW-IT-WORKS.md#feature-4--planning-the-routes)
 
 ## How long milk lasts depends on the weather
 
-Bacteria in raw milk grow about twice as fast per 10 °C rise, so the budget roughly halves for
-every 10 °C hotter the day is.
+Bacteria in raw milk grow about twice as fast for every 10 °C rise, so the budget roughly halves
+for every 10 °C hotter the day is. That is the whole model:
 
 | Outside air | 18 °C | 22 °C | 27 °C | 30 °C | 35 °C | 39 °C |
 |---|---|---|---|---|---|---|
 | Plain tanker | 414 min | 313 min | 222 min | 180 min | **127 min** | 96 min |
 | Insulated | 480 (ceiling) | 475 min | 336 min | 273 min | **193 min** | 146 min |
 
-## Solving villages first
+Insulation is modelled as the air being **6 °C cooler**, not as a multiplier — a jacket slows
+the milk warming towards the air around it, and because the formula is exponential that works
+out at about 1.5× on its own. The multiplier falls out of the physics rather than being picked.
+
+→ [How long milk lasts](docs/HOW-IT-WORKS.md#feature-3--how-long-milk-lasts)
+
+## How distances and travel times are worked out
+
+No maps API — that needs an account key, and the project has to run on a clean machine. Instead:
+the **Haversine formula** for the straight-line distance between two coordinates, then
+**× 1.35** because roads wander around hills and go via the bridge, then divided by a speed that
+depends on the leg — 15 km/h in village lanes, 26 on connecting roads, 34 on the district road —
+and adjusted for the time of day, because roads at 5 AM are empty and roads at 5 PM are not.
+
+Haversine rather than the simpler spherical law of cosines, because that one loses precision on
+**short** distances — and collection points inside a village are 200 to 600 metres apart, so
+short distances are the normal case here.
+
+A 10.4 km straight line becomes 14 km of road: 21.5 minutes in the morning, 27.4 in the evening.
+
+→ [Working out distances](docs/HOW-IT-WORKS.md#feature-1--working-out-distances) ·
+[Working out travel time](docs/HOW-IT-WORKS.md#feature-2--working-out-travel-time)
+
+## Villages are solved first
 
 Collection points inside a village are 200–600 m apart — a minute or two of driving. Villages
 are 8–15 minutes apart. So the problem is not "arrange 1,250 stops"; it is "arrange about 20
 stops inside each village, then assign 60 village blocks to 22 tankers". Those are different
 problems, and it is why this scales: the expensive part sees 60 things, not 1,250.
 
+→ [Planning the routes](docs/HOW-IT-WORKS.md#feature-4--planning-the-routes)
+
 ## Trips copy their plan
 
-When trips are created, each stop is **copied** from the plan rather than pointing at it, so a
-plan republished at 05:30 changes nothing under a driver halfway through their run. Without
-the copy, a mid-session republish silently rewrites the stop list of every truck already out.
+When today's trips are created, each stop is **copied** from the plan rather than pointing at
+it. So a plan republished at 05:30 changes nothing under a driver halfway through their run.
+Without the copy, a mid-session republish silently rewrites the stop list of every tanker
+already out.
+
+→ [Making today's trips](docs/HOW-IT-WORKS.md#feature-5--making-todays-trips)
 
 ## One database index handles drivers losing signal
 
 **The problem.** A driver's phone goes dark for thirty minutes in a valley, still recording
-arrivals and collections with their real times. When the signal returns it uploads everything
-at once — including events that did get through before the signal dropped, because the phone
+arrivals and collections with their real times. When the signal returns it uploads everything at
+once — including events that *did* get through before the signal dropped, because the phone
 cannot know which ones landed.
 
-**The solution.** Every event carries a phone-generated `client_event_id` with a unique index
-on it. A batch is sorted by the phone's own timestamps, applied in that order, and inserted
-with `ON CONFLICT (client_event_id) DO NOTHING`. Duplicates are counted and dropped.
+**The solution.** Every event carries a phone-generated `client_event_id` with a unique index on
+it. A batch is sorted by the phone's own timestamps, applied in that order, and inserted with
+`ON CONFLICT (client_event_id) DO NOTHING`. Duplicates are counted and dropped.
 
 The obvious alternative — catch the constraint violation and count it — does not work:
-PostgreSQL aborts the whole transaction on a failed statement, so every event queued behind
-the duplicate is lost with it.
+PostgreSQL aborts the whole transaction on a failed statement, so every event queued behind the
+duplicate would be lost with it.
+
+→ [Recording what the driver did](docs/HOW-IT-WORKS.md#feature-6--recording-what-the-driver-did)
+
+## When the fleet cannot serve everyone
+
+The obvious rule is to serve whoever gives the most milk per minute. That is optimal on paper
+and it would destroy the cooperative: the villages at the far end of the district are always the
+least efficient choice, so they would be dropped every single hot day, their milk would spoil in
+their own cans, and they would leave within a month.
+
+So a village that has been waiting climbs the priority list, and the longer it has waited the
+faster it climbs. On top of that is a hard rule: **no collection point is skipped more than
+three sessions in a row.** At three, it is served before anything else is even considered. That
+is a promise the dairy can actually make — and it is where the guaranteed date in a farmer's
+answer comes from.
+
+→ [Answering the farmer](docs/HOW-IT-WORKS.md#feature-10--answering-the-farmer)
 
 ---
 
-# 4. Assumptions
+# 5. Assumptions
 
-The brief left a lot open. Every number below is a choice, labelled either **grounded** (there
-is a real basis for it) or **guess** (I picked it and it needs measuring).
+The brief left a lot open. Every number below is a choice. **[ASSUMPTIONS.md](ASSUMPTIONS.md)**
+has the full reasoning for each; this is the short version, and it labels each one either
+**grounded** (there is a published figure behind it) or **a guess** (there is not).
 
-## The collection point model
+## What a collection point is
 
-**Most collection points serve one farmer; about 12% serve two.** That gives ~1,250 points for
-1,408 farmers, roughly 21 per village. The brief says "some collection points serve two
-farmers", so the two-farmer point is **grounded**; the 12% is a **guess**, common enough to
-matter without inventing structure the brief does not describe.
-
-Routing over farmers instead would produce two stops at identical coordinates, and 1,400 stops
-across 22 tankers is 64 stops per route — not a hard optimisation problem, an impossible one.
-Real dairies use village collection societies for exactly this reason.
+Most points serve one farmer, about 12% serve two — roughly 1,250 points for 1,408 farmers. The
+brief says "some collection points serve two farmers", so points and farmers are separate
+things: the tanker visits a **point**, the milk is recorded against a **farmer**. Routing over
+farmers instead would mean two stops at the same coordinates.
 
 ## Spoilage
 
-| Assumption | Value | Reasoning | Status |
-|---|---|---|---|
-| Milk holds this long at 30 °C | **180 min** | Common dairy practice is raw milk to chilling within 2–4 hours; 3 hours is the mid-point. | **Guess** — an industry rule of thumb, not this dairy's data. |
-| Growth doubles per 10 °C | **Q10 = 2.0** | Standard food-science figure for bacterial growth. | **Grounded.** |
-| Insulation | **−6 °C offset**, not a multiplier | See below. | Modelling choice **grounded**; the 6 °C a **guess**. |
-| Floor on the budget | **60 min** | One bad reading of 50 °C would otherwise put the whole fleet into alarm, and a dispatcher who sees that once stops trusting the board. | Reasoning **grounded**, value a **guess**. |
-| Ceiling on the budget | **480 min** | At 10 °C the bacteriology allows twelve hours — true, and operationally useless. Nobody leaves milk in a tanker all day. | Reasoning **grounded**, value a **guess**. |
-| Clock starts at | **first collection**, not departure | The tanker is empty on the outbound leg, so no milk is ageing yet. | **Grounded** — it follows from the physical situation. |
+| | Value | |
+|---|---|---|
+| Milk at 30 °C | 180 min | Industry rule of thumb. **A guess.** |
+| Growth doubles every | 10 °C | Standard food science. **Grounded.** |
+| Insulation worth | 6 °C cooler | Produces the ~1.5× that insulated tankers are said to buy. **A guess.** |
+| Floor / ceiling | 60 / 480 min | A bad thermometer reading of 50 °C should not put every trip into alarm; a cold morning should not suggest leaving milk out for twelve hours. |
 
-**Why insulation is a temperature offset.** A jacket does not stop the milk warming; it slows
-the milk warming toward the air around it, so insulated milk behaves as though the air were
-cooler. Modelled that way, the ~1.5× gain falls out of the exponential rather than my picking
-1.5 and asserting it — and it correctly gets *larger* on hotter days, when it matters most.
-
-**The budget only ever tightens.** If the air heats up mid-trip the deadline moves earlier. If
-it cools again the deadline stays put: milk that spent an hour at 35 °C did not become fresher
-when a cloud went over. Bacterial damage adds up.
+The clock starts at the **first collection**, not at departure — the tanker is empty on the way
+out.
 
 ## Travel time
 
-No maps API is used; a key would break "clone it and run it". `TravelTimeProvider` is an
-interface, so swapping in a real routing service is a one-class change.
+| | Value | |
+|---|---|---|
+| Roads vs straight line | ×1.35 | Published rural road studies say 1.2–1.5. **A guess for mixed terrain.** |
+| Under 2 km | 15 km/h | Village lanes, cattle, people walking. **A guess.** |
+| 2–10 km | 26 km/h | Connecting roads. **A guess.** |
+| Over 10 km | 34 km/h | District road. A loaded tanker, not a car. **A guess.** |
+| Morning / evening | ×1.15 / ×0.90 | Empty roads at 5 AM, market traffic at 5 PM. **A guess.** |
 
-| Assumption | Value | Reasoning | Status |
-|---|---|---|---|
-| Roads are longer than the straight line by | **×1.35** | Published rural road studies put this at 1.2 (flat grid) to 1.5 (hilly, winding). | **Guess** for mixed terrain. |
-| Speed under 2 km | **15 km/h** | Village lanes: cattle, people walking, no room to pass. | **Guess.** |
-| Speed 2–10 km | **26 km/h** | Connecting roads between villages. | **Guess.** |
-| Speed over 10 km | **34 km/h** | District road, loaded heavy vehicle. | **Guess.** |
-| Morning speeds | **+15%** | The roads are empty at 5 AM. | **Guess.** |
-| Evening speeds | **−10%** | Market traffic and school children at 5 PM. | **Guess.** |
+Six extra minutes per leg in the evening, across eight legs, is 48 minutes — **in the session
+that already has the least time.**
 
-These are loaded tankers on rural Indian roads, not cars on a motorway. All six are estimates
-and they are the weakest part of the model. **Worked example**, two villages 10.4 km apart in
-a straight line:
+## Fairness — a business decision, not a technical one
 
-```
-road distance   10.4 × 1.35 = 14.0 km
-morning         34 × 1.15 = 39 km/h  →  21.5 min
-evening         34 × 0.90 = 31 km/h  →  27.4 min
-```
-
-Six minutes longer per leg in the evening. Across eight village hops that is **48 extra
-minutes — in the session that already has the least time to spare.**
-
-## The fairness decision
-
-This one is a business decision wearing a technical costume, so it is worth spelling out.
-
-**The obvious approach is wrong.** When the fleet cannot reach everyone, rank villages by
-litres per minute spent and take the best. That is mathematically optimal, and it would
-destroy the cooperative: the far end of the district is *always* the least efficient choice,
-so it would be dropped on *every* hot day, the same villages over and over, until they left.
-
-**So a village that has been waiting climbs the priority list, and the longer it has waited
-the faster it climbs:**
-
-```
-score = litres per extra minute              ← efficiency
-      × (1 + days since last served) ^ 1.6   ← fairness
-```
-
-**And a hard rule above it.** No collection point is skipped more than three sessions in a
-row; at three it is served before anything else is even considered. That guarantees every
-farmer is collected from at least once every two days — a promise the dairy can make, and the
-source of the guaranteed date in a farmer's "when is my tanker coming?" answer.
-
-Two details. A village counts as neglected as its *most* neglected point, because averaging
-lets one long-ignored point hide behind fresher neighbours. And a village with no history at
-all outranks any amount of recorded neglect, so somewhere the dairy has never reached cannot
-be beaten on arithmetic.
+When the fleet cannot reach everyone, serving whoever gives the most milk per minute is
+mathematically optimal and would destroy the cooperative. So waiting raises a village's
+priority, and nothing is skipped more than three sessions running. Every farmer is collected
+from at least once every two days.
 
 ## Operational
 
-| Assumption | Value | Reasoning | Status |
-|---|---|---|---|
-| Session start times | 05:00 and 16:30 | Typical Indian dairy practice. Both configurable. | **Guess**, configurable. |
-| Morning / evening yield | 60 / 40 split | Common for buffalo herds. | **Guess.** |
-| Daily volume varies | ±15% per farmer | Real herds vary, so plans are always slightly wrong; capacity is therefore planned at 95% of the tanker, not 100%. | **Guess**, and the reason for the headroom. |
-| Time to work a stop | 2 min + 0.35 × farmers | Fixed cost of stopping — park, valve, paperwork — plus per-farmer time. | **Guess.** |
-| Safety buffer | 20 min | Travel times here are estimates. A route booked to arrive with two minutes to spare fails the first wet morning. | Reasoning **grounded**, value a **guess**. |
-| Warn the dispatcher at | 80% of budget used | Meant to give enough notice to act. | **Guess** — see limitations. |
-| Escalate to critical at | 95% of budget used | Below this a dispatcher has options; above it, mostly not. | **Guess.** |
-| Business date | set explicitly at trip creation | The evening session can cross midnight, so deriving it from "now" would be a bug. | **Grounded.** |
-
-**Every tunable number above is a row in the `solver_parameter` table** — 21 of them — and can
-be changed without a redeploy or a restart. Nothing is cached between planning calls, so a
-retune takes effect on the next request. Full reasoning is in [`ASSUMPTIONS.md`](ASSUMPTIONS.md).
-
----
-
-# 5. What I did not build, and why
-
-| Not built | Decision |
+| | |
 |---|---|
-| **Real authentication** | A half-built Spring Security config is worse than an honest placeholder, so the intended roles are written down as a matrix and nothing ships that pretends to enforce them. |
-| **Real map / traffic API** | An account key would break "clone it and run it", so travel time is modelled behind an interface a real routing service can replace in one class. |
-| **SMS / IVR delivery** | A delivery-channel concern with no bearing on whether the routing or the tracking is correct; notifications are logged instead. |
-| **Consolidation advisory** (merging points a few hundred metres apart) | Designed in full and then cut: three of its four design decisions are about farmer consent rather than geometry, so the design is the valuable part and the code is not. |
-| **Partial village fill** | A village that is silently half-served is worse than one honestly skipped — nobody gets an exclusion row and the missed farmers look served. |
-| **Ejection chains** (undoing an accepted merge for a better one) | Worth a few points of coverage, at the cost of routes left corrupt by an abandoned ejection and a day-over-day plan diff too noisy for ops to read. |
-| **Ops console and driver app** | This is a backend brief. |
-| **Payments and milk pricing** | A separate bounded context with its own rules; nothing in it changes a route. |
-| **Kafka, microservices** | 22 tankers pinging every 30 seconds is 0.7 writes a second — the difficulty here is the domain, so that is where the time went. |
-| **Multi-plant optimisation** | The schema holds several plants because the divert option needs a destination, but choosing which plant each route serves is a whole extra dimension of optimisation. |
-| **Volume forecasting** | It needs historical data that does not exist yet; the ±15% variance in the seed is the argument for building it later. |
-| **Data retention policy** | Every ping and event is kept forever, which is fine for a take-home and wrong for production, where GPS traces of named drivers are personal data needing a defensible deletion schedule. |
+| Sessions | 05:00 and 16:30, both configurable |
+| Morning / evening milk | 60 / 40 split |
+| Daily volume varies | ±15%, so capacity is only planned to 95% |
+| Stopping costs | 2 minutes, plus 0.35 per farmer at that point |
+| Safety buffer | 20 minutes — travel times are estimates, and a route booked to arrive with two minutes to spare fails on the first wet morning |
+| Alerts | Warning at 80% of the budget, critical at 95% |
+
+**Every tunable number is a row in the `solver_parameter` table** and can be changed without a
+redeploy.
 
 ---
 
-# 6. Known limitations
+# 6. What I did not build, and why
+
+| Not built | Why |
+|---|---|
+| Real authentication | A role-header stub is in place and the real design is written down. A half-built security layer is worse than an honest placeholder. |
+| A real map or traffic API | Needs an account key, which breaks "runs on a clean machine". `TravelTimeProvider` is the swap point and an OSRM implementation sits behind a profile. |
+| SMS or IVR to farmers | A delivery channel. It has no bearing on whether the routing or the tracking is correct. Notifications are logged instead. |
+| The consolidation advisory | Designed and documented — merging collection points a short walk apart would free real fleet time — but cut for time. |
+| Partial fill and ejection chains | Each worth a few points of coverage, and each adds a class of bug: a village silently half-served, a route left corrupt by an abandoned swap. |
+| An ops screen or a driver app | This is a backend brief. |
+| Payments and milk pricing | A separate problem entirely. |
+| Message queues, microservices | 22 tankers reporting every 30 seconds is under one write per second. The difficulty here is the domain, so that is where the effort went. |
+| Choosing between multiple plants | The schema supports more than one plant, because the "divert" option needs somewhere to divert to. Optimising which plant each route serves is a whole extra dimension. |
+| Predicting tomorrow's volumes | Needs history the system does not have yet. The variance data is the foundation for it. |
+| A data retention policy | Nothing is ever deleted. At real scale the GPS ping table would want monthly partitioning. |
+
+---
+
+# 7. Known limitations
 
 **The travel times are my own model, not measurements.** I estimated how much roads wander
 compared with a straight line, and how fast a loaded tanker goes on each kind of road. Those
@@ -401,45 +373,43 @@ drivers move at a fixed six minutes per leg rather than the times the planner wo
 40 km hop and a 300-metre one take the same simulated time.
 
 That is enough to prove events are recorded correctly, duplicates are rejected, trips reach
-`COMPLETED` and alerts fire at the right thresholds. It cannot test whether the travel model
-is accurate, because I wrote both the model and the simulator, and they would agree with each
-other whatever the truth was.
+`COMPLETED` and alerts fire at the right thresholds. It cannot test whether the travel model is
+accurate, because I wrote both the model and the simulator, and they would agree with each other
+whatever the truth was.
 
-**The warning alert fires too early.** It triggers when a tanker is projected to use 80% of
-its hold budget. But routes are planned close to their limit by design — a typical morning
-route is booked at **220 minutes of a 313-minute budget, about 70%** — so a 14% overrun is
-enough to cross the line.
-
-In the simulated morning the first warning fires six minutes after the fleet leaves, and
-twelve trips raise one. An alert board that cries wolf is one nobody reads. The threshold is a
-single row in `solver_parameter` and should be tuned against real rejection data rather than
-left at my guess.
+**The warning alert fires too early.** It triggers when a tanker is projected to use 80% of its
+hold budget. But routes are planned close to their limit by design — a typical morning route is
+booked at **220 minutes of a 313-minute budget, about 70%** — so a 14% overrun is enough to
+cross the line. In the simulated morning the first warning fires six minutes after the fleet
+leaves, and twelve trips raise one. An alert board that cries wolf is one nobody reads. The
+threshold is a single row in `solver_parameter` and should be tuned against real rejection data
+rather than left at my guess.
 
 **The deadline can tighten if the weather gets hotter mid-trip, but nothing ever makes it.**
 Temperature comes from a table holding one figure per month per session, so it cannot change
-during a run. The logic is written and tested, but only the `spoilage-crisis` scenario drives
-it, by passing the change in by hand. A weather feed or a tanker thermometer would fix that.
+during a run. The logic is written and tested, but only the `spoilage-crisis` scenario drives it,
+by passing the change in by hand. A weather feed or a thermometer on the tanker would fix that.
 
 ---
 
-# 7. If I had two more weeks
+# 8. If I had two more weeks
 
 - **Wire a real routing service and calibrate it against GPS traces.** Every other number is
   downstream of the travel model, so this comes first.
-- **Take the roster finding to the dairy.** 348 collection points a morning for a conversation
-  about shift patterns is the best-value item in the system.
-- **Trial the 18:30 evening departure** with two or three villages, and measure actual
-  rejection rates against what the model predicted.
-- **Separate "we chose not to" from "no tanker could".** Excluded points all come back with
-  one reason today; splitting them is what tells a dairy where to put a local chilling unit.
-- **Calibrate the hold window** against real rejection data, replacing the 180-minute industry
-  figure with a measured one.
-- **Build the driver Android app** with proper offline sync. The server side of that contract
-  is already built and tested.
+- **Run in shadow mode** alongside the existing paper routes for a fortnight, and compare
+  predicted against actual arrivals before trusting a plan.
+- **Calibrate the hold window against real rejection data.** Every intake record already stores
+  how old the oldest milk was, which is exactly what is needed to replace my guessed 180 minutes
+  with a measured figure.
+- **Build the driver's Android app** with proper offline sync. The server side of it is done.
+- **Finish the consolidation advisory** — find collection points a short walk apart and price
+  what merging them would free up.
+- **Move plan generation to a background job.** Above about 5,000 collection points a
+  synchronous request stops being reasonable.
 
 ---
 
-# 8. Where things are
+# 9. Where things are
 
 ```
 src/main/java/com/dairy/milkroute/
@@ -455,16 +425,21 @@ src/main/resources/
 ├── db/migration/  V1..V5 — Flyway owns the schema, Hibernate only validates it
 ├── datasets/      baseline, heat-crisis, sparse-district, reference (solver parameters)
 └── scenarios/     happy-morning, spoilage-crisis
-
-docs/
-├── SIMULATION.md  the full session walkthrough — drivers, farmers, the reconnect
-└── 01..05         problem, schema, algorithms, datasets, edge cases, task list
 ```
 
-**The system clock is called in exactly one place**, which is what makes the simulation
-possible at all; retrofitting it later would mean touching every class. **And nothing in
-`domain/` knows Spring exists** — the solver, spoilage model and ETA calculator are plain
-Java, built with `new`. Both are worth checking rather than believing:
+| Document | What it is |
+|---|---|
+| **[docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md)** | Every feature in plain language: the maths, the files, the tables |
+| **[docs/SIMULATION.md](docs/SIMULATION.md)** | Replaying a whole session, and what to look at while it runs |
+| [ASSUMPTIONS.md](ASSUMPTIONS.md) | Every number I chose, and why |
+| [docs/02-schema.md](docs/02-schema.md) | The 20 tables and the reasoning behind each |
+| [docs/03-algorithms.md](docs/03-algorithms.md) | The routing and spoilage code in detail |
+| [docs/05-edge-cases.md](docs/05-edge-cases.md) | What happens when things go wrong |
+
+**The system clock is called in exactly one place**, which is what makes the simulation possible
+at all; retrofitting it later would mean touching every class. **And nothing in `domain/` knows
+Spring exists** — the solver, spoilage model and ETA calculator are plain Java, built with
+`new`. Both are worth checking rather than believing:
 
 ```bash
 grep -rn "Instant\.now()" src/main/java
