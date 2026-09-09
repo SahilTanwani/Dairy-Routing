@@ -17,8 +17,7 @@ Java 21 · Spring Boot 4.0.8 · PostgreSQL 16 · Flyway · Docker Compose.
 - **Git**, or download the ZIP from GitHub
 - **Ports 8080 and 5432 free**
 
-`./mvnw test` additionally needs JDK 21 on the host. On Windows, run `demo.sh` from **Git
-Bash** — PowerShell's `bash` resolves to WSL, which may not be installed.
+`./mvnw test` additionally needs JDK 21 on the host.
 
 ---
 
@@ -30,6 +29,13 @@ cd Dairy-Routing
 docker compose up
 ./demo.sh          # in a second terminal
 ```
+
+**On Windows**, `./demo.sh` needs a bash shell. Right-click inside the `Dairy-Routing`
+folder in File Explorer, choose "Show more options" if you are on Windows 11, then
+**"Git Bash Here"**, and run `./demo.sh` in the window that opens.
+
+Command Prompt cannot run shell scripts, PowerShell's `bash` resolves to WSL (which
+may not be installed), and running the file from inside an editor will not work either.
 
 | Step | First run | Afterwards |
 |---|---|---|
@@ -54,7 +60,7 @@ Four acts, about twenty seconds. Each loads a different dairy and asks the same 
 **can 22 tankers collect everyone's milk before it goes off?**
 
 | Act | Dairy | Answer |
-|---|--|---|
+|---|---|---|
 | 1 | A normal morning, 22 °C | Not quite. 868 of 1,250 collection points. **The driver's shift runs out before the milk does.** |
 | 2 | The same dairy, 35 °C evening | Badly short. 241 of 1,250. **Now the milk runs out first.** |
 | 3 | The same evening, but leaving two hours later | Leaving two hours later would raise that from 19% to 37%, and costs nothing. |
