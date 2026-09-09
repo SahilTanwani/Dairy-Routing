@@ -67,17 +67,16 @@ experiment rather than an anecdote.
 ## Tests and development mode
 
 ```bash
-docker compose up -d db                                  # both of these need a database
+## Tests
+
+```bash
+docker compose up -d db     # three test classes need a database
 ./mvnw test
 # Tests run: 187, Failures: 0, Errors: 0, Skipped: 0
-
-SPRING_PROFILES_ACTIVE=dev ./mvnw spring-boot:run        # app on the host, ready in ~9 s
-# PowerShell:  $env:SPRING_PROFILES_ACTIVE="dev"; .\mvnw.cmd spring-boot:run
 ```
 
-Three test classes — 14 tests — boot a Spring context and need PostgreSQL on localhost:5432.
-Without it those fail and the other 173 still pass. Everything in `domain/` is plain Java and
-needs no Spring context, which is why the whole suite finishes in under a minute.
+Fourteen of the 187 boot a Spring context and expect PostgreSQL on localhost:5432.
+Without it those fail and the other 173 still pass.
 
 Interactive API docs at <http://localhost:8080/swagger-ui.html>.
 
@@ -85,32 +84,26 @@ Interactive API docs at <http://localhost:8080/swagger-ui.html>.
 
 # 2. Watching a whole session run
 
-`demo.sh` shows the planner. The other half is a collection session actually happening —
-twenty-two tankers on the road, farmers waiting, one of them asking where the tanker is.
+# 2. Watching a whole session run
 
-A real session takes three hours and happens twice a day, so it cannot be tested by waiting for
-one. Instead, nothing in this system calls the system clock: every class asks a `ClockProvider`
-what time it is, and under the `sim` profile that clock is driven by the test. **A whole
-morning replays in about four minutes.**
+`demo.sh` shows the planner. The other half is a collection session actually
+happening — twenty-two tankers on the road, farmers waiting, one of them asking
+where the tanker is.
 
-```bash
-SPRING_PROFILES_ACTIVE=sim docker compose up
-# PowerShell:  $env:SPRING_PROFILES_ACTIVE="sim"; docker compose up
+A real session takes three hours and happens twice a day, so it cannot be tested
+by waiting for one. Instead, nothing in this system calls the system clock: every
+class asks a `ClockProvider` what time it is, and under the `sim` profile that
+clock is driven by the test. **A whole morning replays in about four minutes.**
 
-curl -X POST 'localhost:8080/api/v1/sim/run?scenario=happy-morning'
-```
+The twenty-two simulated drivers post to the same HTTP endpoints a real driver's
+phone would use and never touch the database, so this exercises the real
+controllers and the real duplicate handling rather than a test shortcut.
 
-Twenty-two simulated drivers post to the same HTTP endpoints a real driver's phone would use
-and never touch the database, so this exercises the real controllers and the real duplicate
-handling rather than a test shortcut.
-
-**→ [docs/SIMULATION.md](docs/SIMULATION.md)** is the full walkthrough: how to ask a farmer
-when his milk will be collected and watch the answer change thirty seconds later, how to read a
-driver's stop list mid-round, and what happens when all twenty-two phones lose signal for half
-an hour and then reconnect at once.
-
-It also has the commands for loading each of the three dairies by hand, if you would rather go
-step by step than let `demo.sh` do it.
+**→ [docs/SIMULATION.md](docs/SIMULATION.md)** has the commands and the full
+walkthrough: how to ask a farmer when his milk will be collected and watch the
+answer change thirty seconds later, how to read a driver's stop list mid-round,
+and what happens when all twenty-two phones lose signal for half an hour and then
+reconnect at once. It also covers loading the three dairies by hand.
 
 ---
 
