@@ -82,7 +82,6 @@ Interactive API docs at <http://localhost:8080/swagger-ui.html>.
 
 ---
 
-# 2. Watching a whole session run
 
 # 2. Watching a whole session run
 
