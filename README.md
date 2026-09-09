@@ -53,6 +53,16 @@ Seeded 'baseline' (seed 88213): 60 villages, 1250 points, 1408 farmers, 22 tanke
 `demo.sh` waits for the 200 itself. It needs `bash` and `curl` only, and takes `PAUSE=1` to
 stop between sections.
 
+**Using an IDE?** Let Docker provide only the database and run `MilkrouteApplication`
+directly — it comes up in about nine seconds:
+
+```bash
+docker compose up -d db
+```
+
+IntelliJ's built-in terminal defaults to PowerShell on Windows, so open Git Bash
+separately for `demo.sh`.
+
 ## What demo.sh shows
 
 Four acts, about twenty seconds. Each loads a different dairy and asks the same question:
@@ -88,7 +98,53 @@ Interactive API docs at <http://localhost:8080/swagger-ui.html>.
 
 `demo.sh` shows the planner. The other half is a collection session actually
 happening — twenty-two tankers on the road, farmers waiting, one of them asking
-where the tanker is.
+where the tanker is. This is what that half looks like:
+
+```
+                    ┌─────────────────────────────────────────┐
+                    │   22 DRIVER PHONES, out in the villages │
+                    └─────────────────────────────────────────┘
+                          │                          │
+        EVENTS            │                          │   GPS PINGS
+        arrived · collected · departed                │   every 30 seconds
+        buffered while offline, sent in batches       │   fire and forget
+        each carries a UUID the phone generated       │   no UUID — a repeat
+                          │                          │   is harmless
+                          ▼                          ▼
+     POST /drivers/trips/{id}/events      POST /drivers/trips/{id}/pings
+                          │                          │
+                          │  1. reject if the phone's clock is >1h out
+                          │  2. sort by the phone's own timestamps
+                          │  3. INSERT ... ON CONFLICT DO NOTHING
+                          │     └─ the unique index drops what we already have
+                          │  4. replay through the trip state machine
+                          │                          │
+                          ▼                          ▼
+              ┌───────────────────────┐   ┌────────────────────────┐
+              │  trip · trip_stop     │   │  last_lat · last_lng   │
+              │  collection  (money)  │   │  last_ping_at          │
+              │  driver_event (audit) │   └────────────────────────┘
+              └───────────────────────┘              │
+                          │                          │
+      EVENTS decide WHICH LEG the tanker is on.      │
+      PINGS only say HOW FAR ALONG that leg.  ───────┘
+      A tanker that drives past a point has not collected from it.
+                          │
+      ┌───────────────────┴──────────────────┬─────────────────────┐
+      ▼                                      ▼                     ▼
+ SPOILAGE MONITOR                   "Where is my tanker?"      OPS BOARD
+ every 60 seconds                   GET /farmers/{code}/...    GET /ops/board
+      │                                      │                     │
+      │ budget = f(temperature)              │ position + ETA      │ 22 trips
+      │ shrinks if it gets hotter,           │ + confidence        │ + deadlines
+      │ never grows back                     │                     │ + risk
+      │ 80% → WARNING · 95% → CRITICAL       ▼                     ▼
+      ▼                            "The tanker is 7 stops     dispatcher sees
+   alert (deduplicated)             away, expected around      it before the
+   + ranked mitigations             6:41 am."                  milk is lost
+     — never auto-executed
+                                    LOW confidence → no time at all
+```
 
 A real session takes three hours and happens twice a day, so it cannot be tested
 by waiting for one. Instead, nothing in this system calls the system clock: every
@@ -175,6 +231,25 @@ language — the maths, the files that do it, and the database tables it touches
 The tanker is empty on the way out, so nothing is spoiling yet — the clock starts at the
 **first collection**, not at departure. That means the goal is "least time carrying milk", not
 "least distance", and the two disagree. Three villages 8, 25 and 40 km from the plant:
+
+```
+                              PLANT
+                                │
+              ┌─────────────────┼─────────────────┐
+              ●  8 km           ● 25 km           ● 40 km
+
+
+NEAREST FIRST — 149 minutes carrying milk
+   PLANT ───────► ● ───────► ● ───────► ● ═══════════════════════► PLANT
+          empty      milk       milk       milk, all 40 km home
+                                           ↑ the oldest milk rides the longest leg
+
+
+FARTHEST FIRST — 83 minutes carrying milk
+   PLANT ═══════════════════════► ● ───────► ● ───────► ● ───────► PLANT
+          40 km EMPTY                milk       milk       milk, 8 km home
+          ↑ costs nothing, nothing is spoiling yet          ↑ short run home
+```
 
 | Order | Straight-line km | Time carrying milk |
 |---|---|---|
