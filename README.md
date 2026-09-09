@@ -54,10 +54,10 @@ Four acts, about twenty seconds. Each loads a different dairy and asks the same 
 **can 22 tankers collect everyone's milk before it goes off?**
 
 | Act | Dairy | Answer |
-|---|---|---|
+|---|--|---|
 | 1 | A normal morning, 22 °C | Not quite. 868 of 1,250 collection points. **The driver's shift runs out before the milk does.** |
 | 2 | The same dairy, 35 °C evening | Badly short. 241 of 1,250. **Now the milk runs out first.** |
-| 3 | — | Leaving two hours later would raise that from 19% to 37%, and costs nothing. |
+| 3 | The same evening, but leaving two hours later | Leaving two hours later would raise that from 19% to 37%, and costs nothing. |
 | 4 | A thinly spread district | Ten villages no tanker can reach and get back from in time. Not a shortage — physics. |
 
 Act 2 uses the same random seed as Act 1, so it is the same villages, the same farmers and the
