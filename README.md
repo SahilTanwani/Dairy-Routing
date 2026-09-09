@@ -17,6 +17,12 @@ Java 21 · Spring Boot 4.0.8 · PostgreSQL 16 · Flyway · Docker Compose.
 - **Git**, or download the ZIP from GitHub
 - **Ports 8080 and 5432 free**
 
+**On Windows, run everything from Git Bash** — right-click inside the project folder in
+File Explorer, choose "Show more options" if you are on Windows 11, then "Git Bash Here".
+Command Prompt cannot run shell scripts at all, PowerShell needs different syntax for
+several commands, and running `demo.sh` from inside an editor will not work either.
+Every command in this repository is written for bash.
+
 `./mvnw test` additionally needs JDK 21 on the host.
 
 ---
@@ -29,13 +35,6 @@ cd Dairy-Routing
 docker compose up
 ./demo.sh          # in a second terminal
 ```
-
-**On Windows**, `./demo.sh` needs a bash shell. Right-click inside the `Dairy-Routing`
-folder in File Explorer, choose "Show more options" if you are on Windows 11, then
-**"Git Bash Here"**, and run `./demo.sh` in the window that opens.
-
-Command Prompt cannot run shell scripts, PowerShell's `bash` resolves to WSL (which
-may not be installed), and running the file from inside an editor will not work either.
 
 | Step | First run | Afterwards |
 |---|---|---|
@@ -63,16 +62,13 @@ Four acts, about twenty seconds. Each loads a different dairy and asks the same 
 |---|---|---|
 | 1 | A normal morning, 22 °C | Not quite. 868 of 1,250 collection points. **The driver's shift runs out before the milk does.** |
 | 2 | The same dairy, 35 °C evening | Badly short. 241 of 1,250. **Now the milk runs out first.** |
-| 3 | The same evening, but leaving two hours later | Leaving two hours later would raise that from 19% to 37%, and costs nothing. |
+| 3 | The same evening, but leaving two hours later | 29 °C instead of 35 °C, so the milk lasts 193 minutes instead of 127. Coverage rises from 19% to 37% — **and it costs nothing.** |
 | 4 | A thinly spread district | Ten villages no tanker can reach and get back from in time. Not a shortage — physics. |
 
 Act 2 uses the same random seed as Act 1, so it is the same villages, the same farmers and the
 same 22 tankers. **Only the weather is different.** That is what makes the comparison an
 experiment rather than an anecdote.
 
-## Tests and development mode
-
-```bash
 ## Tests
 
 ```bash
@@ -87,7 +83,6 @@ Without it those fail and the other 173 still pass.
 Interactive API docs at <http://localhost:8080/swagger-ui.html>.
 
 ---
-
 
 # 2. Watching a whole session run
 
